@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plotify - My Projects</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Design System Variables from project.html */
+        :root {
+            --primary-color: #2c6b4b;
+            --secondary-color: #f4f7f6;
+            --text-color: #333;
+            --light-gray: #dde1e6;
+            --white: #fff;
+            --danger-color: #c62828;
+            --danger-bg: #fff0f0;
+            --border-radius: 10px;
+            --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+            --status-completed-bg: #e8f5e9;
+            --status-completed-text: #2e7d32;
+            --status-inprogress-bg: #e3f2fd;
+            --status-inprogress-text: #1565c0;
+        }
+
+        /* Base Body Styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        /* Header from project.html */
+        header {
+            background: var(--white);
+            padding: 0 2rem;
+            border-bottom: 1px solid var(--light-gray);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--box-shadow);
+            height: 60px;
+        }
+
+        header .logo {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        /* Main Projects Container */
+        .projects-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Projects Header (Title and New Project Button) */
+        .projects-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .projects-header h1 {
+            margin: 0;
+            color: var(--primary-color);
+        }
+
+        /* Main Button Styles */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: background-color 0.2s, transform 0.2s;
+            text-decoration: none; /* Removed underline from links styled as buttons */
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: var(--white);
+            box-shadow: 0 4px 12px rgba(44, 107, 75, 0.2);
+        }
+        .btn-primary:hover {
+            background-color: #1e4d2e;
+        }
+
+        .btn-secondary {
+            background-color: var(--white);
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+        }
+        .btn-secondary:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .btn-danger {
+            background-color: var(--white);
+            color: var(--danger-color);
+            border: 1px solid var(--danger-color);
+        }
+        .btn-danger:hover {
+            background-color: var(--danger-bg);
+        }
+
+        /* Filter Buttons */
+        .project-filters {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+
+        .filter-btn {
+            background-color: var(--white);
+            color: var(--text-color);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            border: 1px solid var(--light-gray);
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background-color: #e8e8e8;
+            border-color: #ccc;
+        }
+
+        .filter-btn.active {
+            background-color: var(--primary-color);
+            color: var(--white);
+            border-color: var(--primary-color);
+        }
+
+        /* Grid for Project Cards */
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        /* Project Card Styling */
+        .project-card {
+            background: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid var(--light-gray);
+            color: var(--text-color);
+            position: relative; /* Needed for positioning the delete button */
+        }
+
+        .project-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+        }
+
+        .card-delete-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            line-height: 1;
+            color: #ccc;
+            cursor: pointer;
+            padding: 0.25rem;
+            transition: color 0.2s;
+            z-index: 10;
+        }
+        .card-delete-btn:hover {
+            color: var(--danger-color);
+        }
+
+        .project-card-title {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.3rem;
+            color: var(--primary-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .project-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        
+        .project-card-header-main {
+            flex-grow: 1;
+        }
+
+        .project-card-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .project-card-client {
+            margin: 0;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #555;
+            min-height: 22px; /* Reserve space */
+        }
+
+        .project-card-description {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #555;
+            flex-grow: 1; /* Pushes footer down */
+        }
+        
+        /* Inline Edit Styles */
+        .inline-edit-input, .inline-edit-textarea {
+            width: 100%;
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-family: 'Inter', sans-serif;
+            background-color: #f9f9f9;
+        }
+        .inline-edit-input {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+        .inline-edit-input.client-input {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #555;
+        }
+        .inline-edit-textarea {
+            font-size: 0.9rem;
+            color: #555;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .project-card-dates-edit {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            font-size: 0.8rem;
+            color: #777;
+        }
+        .project-card-dates-edit div {
+            flex: 1;
+        }
+        .project-card-dates-edit label {
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+        .inline-edit-date {
+            font-size: 0.9rem;
+            color: #555;
+            box-sizing: border-box;
+        }
+
+        .project-card-dates {
+            font-size: 0.8rem;
+            color: #777;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--secondary-color);
+        }
+        
+        .project-card-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: #666;
+            padding-top: 0.5rem;
+        }
+        .stats-info {
+            display: flex;
+            gap: 1rem;
+        }
+        .delete-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: #aaa;
+            padding: 0.2rem;
+        }
+        .delete-btn:hover { color: var(--danger-color); }
+        .delete-confirmation {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            width: 100%;
+            justify-content: flex-end;
+        }
+        .confirm-delete-btn {
+            background-color: var(--danger-bg);
+            color: var(--danger-color);
+            border: 1px solid var(--danger-color);
+            padding: 0.2rem 0.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .cancel-delete-btn {
+            background: var(--white);
+            border: 1px solid #ccc;
+            padding: 0.2rem 0.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .project-card-footer {
+            margin-top: auto; /* Aligns to bottom */
+            padding-top: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .project-card-footer .btn {
+            flex: 1;
+            text-align: center;
+        }
+
+        /* Toggle Switch Styles */
+        .status-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 20px;
+        }
+
+        .switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--status-inprogress-bg);
+            border: 1px solid var(--status-inprogress-text);
+            transition: .4s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 12px;
+            width: 12px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--status-inprogress-text);
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--status-completed-bg);
+            border-color: var(--status-completed-text);
+        }
+
+        input:checked + .slider:before {
+            background-color: var(--status-completed-text);
+            transform: translateX(14px);
+        }
+        
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .projects-container { padding: 1rem; }
+            .projects-header h1 { font-size: 1.5rem; }
+            .projects-grid { grid-template-columns: 1fr; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">Plotify Pro 🪴</div>
+    </header>
+
+    <main class="projects-container">
+        <div class="projects-header">
+            <h1>My Landscape Projects</h1>
+            <button class="btn btn-primary" id="new-project-btn">+ Create New Project</button>
+        </div>
+
+        <div class="project-filters">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="in-progress">In Progress</button>
+            <button class="filter-btn" data-filter="completed">Completed</button>
+        </div>
+
+        <div class="projects-grid" id="projects-grid">
+            <!-- Project cards will be dynamically inserted here by JavaScript -->
+        </div>
+    </main>
+        <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const projectsGrid = document.getElementById('projects-grid');
+            const filterContainer = document.querySelector('.project-filters');
+            const newProjectBtn = document.getElementById('new-project-btn');
+
+            let mockProjects = [
+                { id: 1, name: "Backyard Oasis Renovation for the Johnson Family", status: "in-progress", description: "A complete overhaul of the backyard with a new patio area and drought-tolerant plants.", plantCount: 12, zoneCount: 3, link: "project.html", client: { name: "The Johnson Family" }, startDate: "2025-08-15", completedDate: null },
+                { id: 2, name: "Front Yard Redesign", status: "completed", description: "Replaced the front lawn with native flowers and shrubs to attract pollinators.", plantCount: 25, zoneCount: 4, link: "project.html", client: null, startDate: "2025-06-01", completedDate: "2025-07-20" },
+                { id: 3, name: "Community Garden Plot", status: "in-progress", description: "Setting up a raised bed for vegetables and herbs for the summer season.", plantCount: 8, zoneCount: 1, link: "project.html", client: null, startDate: "2025-09-01", completedDate: null },
+                { id: 4, name: "Balcony Herb Garden", status: "completed", description: "Container garden setup for culinary herbs on a small city balcony.", plantCount: 10, zoneCount: 1, link: "project.html", client: { name: "Anna Smith" }, startDate: "2025-07-10", completedDate: "2025-07-12" },
+                { id: 5, name: "Side Yard Walkway", status: "in-progress", description: "Planting shade-loving ground cover and perennials along a new stone path.", plantCount: 18, zoneCount: 2, link: "project.html", client: null, startDate: "2025-09-05", completedDate: null },
+                { id: 6, name: "Poolside Landscaping", status: "completed", description: "Tropical-themed plants that are low-mess and can handle full sun.", plantCount: 15, zoneCount: 2, link: "project.html", client: { name: "Maple Crest HOA" }, startDate: "2025-05-10", completedDate: "2025-06-15" },
+            ];
+            
+            let projectToDeleteId = null;
+            let editingProjectId = null;
+
+            const formatDate = (dateString) => {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+                const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
+                return adjustedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            };
+
+            const renderProjects = (filter = 'all') => {
+                const activeFilter = document.querySelector('.filter-btn.active').dataset.filter;
+                projectsGrid.innerHTML = '';
+
+                const filteredProjects = mockProjects.filter(project => {
+                    if (activeFilter === 'all') return true;
+                    return project.status === activeFilter;
+                });
+                
+                if (filteredProjects.length === 0) {
+                    projectsGrid.innerHTML = '<p>No projects found for this filter.</p>';
+                    return;
+                }
+
+                filteredProjects.forEach(project => {
+                    const card = document.createElement('div');
+                    card.className = 'project-card';
+                    card.dataset.projectId = project.id;
+                    
+                    if (editingProjectId === project.id) {
+                        // --- RENDER EDITING VIEW ---
+                        card.innerHTML = `
+                            <input type="text" class="inline-edit-input" value="${project.name}" data-field="name">
+                            <div class="project-card-header">
+                                <div class="project-card-header-main">
+                                    <input type="text" class="inline-edit-input client-input" placeholder="Client Name" value="${project.client ? project.client.name : ''}" data-field="client">
+                                </div>
+                                <!-- Status toggle is hidden during edit -->
+                            </div>
+                            <textarea class="inline-edit-textarea" data-field="description">${project.description}</textarea>
+                            <div class="project-card-dates-edit">
+                                <div>
+                                    <label for="startDate-${project.id}">Started</label>
+                                    <input type="date" id="startDate-${project.id}" class="inline-edit-date" value="${project.startDate || ''}" data-field="startDate">
+                                </div>
+                                <div>
+                                    <label for="completedDate-${project.id}">Completed</label>
+                                    <input type="date" id="completedDate-${project.id}" class="inline-edit-date" value="${project.completedDate || ''}" data-field="completedDate">
+                                </div>
+                            </div>
+                            <div class="project-card-stats">
+                               <div class="stats-info">
+                                    <span>🌳 ${project.plantCount} Plants</span>
+                                    <span>🌿 ${project.zoneCount} Zones</span>
+                                </div>
+                            </div>
+                            <div class="project-card-footer">
+                                <button class="btn btn-primary save-btn" data-project-id="${project.id}">Save</button>
+                                <button class="btn btn-secondary cancel-edit-btn">Cancel</button>
+                            </div>
+                        `;
+
+                    } else {
+                        // --- RENDER NORMAL VIEW ---
+                        const statusText = project.status === 'in-progress' ? 'In Progress' : 'Completed';
+                        let footerContent;
+
+                        if (projectToDeleteId === project.id) {
+                             footerContent = `
+                                <div class="delete-confirmation">
+                                    <span>Delete project?</span>
+                                    <button class="cancel-delete-btn">No</button>
+                                    <button class="confirm-delete-btn" data-project-id="${project.id}">Yes, Delete</button>
+                                </div>
+                             `;
+                        } else {
+                            footerContent = `
+                                <a href="${project.link}?id=${project.id}" class="btn btn-primary">View</a>
+                                <button class="btn btn-secondary edit-btn" data-project-id="${project.id}">Edit</button>
+                            `;
+                        }
+
+                        card.innerHTML = `
+                            ${projectToDeleteId !== project.id ? `<button class="card-delete-btn" data-project-id="${project.id}" title="Delete project">&times;</button>` : ''}
+                            <h2 class="project-card-title" title="${project.name}">${project.name}</h2>
+                            <div class="project-card-header">
+                                <div class="project-card-header-main">
+                                    ${project.client ? `<p class="project-card-client">Client: ${project.client.name}</p>` : '<p class="project-card-client">&nbsp;</p>'}
+                                </div>
+                                <div class="project-card-controls">
+                                    <div class="status-toggle">
+                                        <span>${statusText}</span>
+                                        <label class="switch">
+                                            <input type="checkbox" class="status-toggle-input" data-project-id="${project.id}" ${project.status === 'completed' ? 'checked' : ''}>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="project-card-description">${project.description}</p>
+                            <div class="project-card-dates">
+                                <span>Started: ${formatDate(project.startDate)}</span>
+                                ${project.completedDate ? `<span>Completed: ${formatDate(project.completedDate)}</span>` : ''}
+                            </div>
+                            <div class="project-card-stats">
+                               <div class="stats-info">
+                                    <span>🌳 ${project.plantCount} Plants</span>
+                                    <span>🌿 ${project.zoneCount} Zones</span>
+                                </div>
+                            </div>
+                            <div class="project-card-footer">
+                                ${footerContent}
+                            </div>
+                        `;
+                    }
+                    projectsGrid.appendChild(card);
+                });
+            };
+
+            const getActiveFilter = () => document.querySelector('.filter-btn.active').dataset.filter;
+
+            filterContainer.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    document.querySelector('.filter-btn.active').classList.remove('active');
+                    e.target.classList.add('active');
+                    projectToDeleteId = null;
+                    editingProjectId = null;
+                    renderProjects();
+                }
+            });
+
+            newProjectBtn.addEventListener('click', () => {
+                const newId = mockProjects.length > 0 ? Math.max(...mockProjects.map(p => p.id)) + 1 : 1;
+                const newProject = {
+                    id: newId,
+                    name: "Untitled Project",
+                    status: "in-progress",
+                    description: "Add a description for your new project.",
+                    plantCount: 0,
+                    zoneCount: 0,
+                    link: "project.html",
+                    client: null,
+                    startDate: new Date().toISOString().split('T')[0],
+                    completedDate: null
+                };
+                mockProjects.unshift(newProject);
+                
+                document.querySelector('.filter-btn.active').classList.remove('active');
+                document.querySelector('.filter-btn[data-filter="all"]').classList.add('active');
+                
+                projectToDeleteId = null;
+                editingProjectId = newId; // Immediately enter edit mode for the new project
+                renderProjects();
+            });
+
+            projectsGrid.addEventListener('click', (e) => {
+                const target = e.target;
+                
+                // --- Handle Edit Button Clicks ---
+                const editBtn = target.closest('.edit-btn');
+                if (editBtn) {
+                    editingProjectId = parseInt(editBtn.dataset.projectId, 10);
+                    projectToDeleteId = null; // Exit delete mode if active
+                    renderProjects();
+                    return; // Stop further processing for this click
+                }
+
+                // --- Handle Delete Button Clicks ---
+                const deleteBtn = target.closest('.card-delete-btn');
+                if (deleteBtn) {
+                    projectToDeleteId = parseInt(deleteBtn.dataset.projectId, 10);
+                    editingProjectId = null;
+                    renderProjects();
+                }
+
+                if (target.classList.contains('cancel-delete-btn')) {
+                    projectToDeleteId = null;
+                    renderProjects();
+                }
+                if (target.classList.contains('confirm-delete-btn')) {
+                    const idToDelete = parseInt(target.dataset.projectId, 10);
+                    mockProjects = mockProjects.filter(p => p.id !== idToDelete);
+                    projectToDeleteId = null;
+                    renderProjects();
+                }
+                
+                // --- Handle Edit Button Clicks ---
+                if (target.classList.contains('cancel-edit-btn')) {
+                    editingProjectId = null;
+                    renderProjects();
+                }
+                if (target.classList.contains('save-btn')) {
+                    const card = target.closest('.project-card');
+                    const idToSave = parseInt(target.dataset.projectId, 10);
+                    const project = mockProjects.find(p => p.id === idToSave);
+
+                    if (project) {
+                        const newName = card.querySelector('[data-field="name"]').value.trim();
+                        const newClientName = card.querySelector('[data-field="client"]').value.trim();
+                        const newDescription = card.querySelector('[data-field="description"]').value.trim();
+                        const newStartDate = card.querySelector('[data-field="startDate"]').value;
+                        const newCompletedDate = card.querySelector('[data-field="completedDate"]').value;
+                        
+                        project.name = newName || "Untitled Project";
+                        project.description = newDescription;
+                        project.startDate = newStartDate;
+                        project.completedDate = newCompletedDate || null; // Set to null if cleared
+
+                        if (newClientName) {
+                            project.client = { name: newClientName };
+                        } else {
+                            project.client = null;
+                        }
+                    }
+                    editingProjectId = null;
+                    renderProjects();
+                }
+            });
+            
+            projectsGrid.addEventListener('change', (e) => {
+                if (e.target.classList.contains('status-toggle-input')) {
+                    const projectId = parseInt(e.target.dataset.projectId, 10);
+                    const project = mockProjects.find(p => p.id === projectId);
+                    
+                    if (project) {
+                        project.status = e.target.checked ? 'completed' : 'in-progress';
+                        project.completedDate = e.target.checked ? new Date().toISOString().split('T')[0] : null;
+                        renderProjects();
+                    }
+                }
+            });
+
+            renderProjects();
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+
+

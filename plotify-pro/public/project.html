@@ -50,10 +50,31 @@
             position: relative;
         }
 
-        header .logo {
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .logo-icon {
+            font-size: 1.8rem;
+        }
+        .logo-text {
             font-size: 1.6rem;
             font-weight: 700;
             color: var(--primary-color);
+        }
+        .project-name {
+            font-weight: 500;
+            color: #666;
+            font-size: 1.4rem;
+            padding-left: 0.75rem;
+            margin-left: 0.25rem;
+            border-left: 2px solid var(--light-gray);
+        }
+
+        header .header-actions {
+            display: flex;
+            gap: 1rem;
         }
         
         .pane {
@@ -249,6 +270,7 @@
             padding: 1rem; 
             display: flex;
             flex-direction: column;
+            flex-grow: 1;
         }
         .plant-card-header {
             display: flex;
@@ -437,7 +459,7 @@
             font-size: 0.85rem;
             font-weight: 600;
         }
-        .share-btn {
+        .share-btn, .save-btn, .download-btn {
              background-color: #4285F4;
              color: white;
         }
@@ -574,6 +596,11 @@
             overflow-y: auto;
             flex-grow: 1;
         }
+        #modal-plot-container .plot-zones-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
 
         /* Small utility for copied message */
         .copied-message {
@@ -626,8 +653,16 @@
 
     <div class="app-container">
         <header>
-            <div class="logo">Plotify Pro 🪴</div>
-            <button class="project-btn share-btn" id="share-project-btn">Share Project</button>
+            <div class="logo-container">
+                <span class="logo-icon">🪴</span>
+                <span class="logo-text">Plotify Pro</span>
+                <span class="project-name" id="project-name-display"></span>
+            </div>
+            <input type="hidden" id="project-id" value="">
+            <div class="header-actions">
+                <button class="project-btn download-btn" id="download-project-btn">Download Project</button>
+                <button class="project-btn share-btn" id="share-project-btn">Share Project</button>
+            </div>
             <div class="progress-bar-container">
                 <div class="progress-bar"></div>
             </div>
@@ -682,6 +717,19 @@
         </div>
     </div>
 
+    <!-- Inline Confirm Modal -->
+    <div id="inline-confirm-modal" class="modal-overlay">
+        <div class="modal-content-large" style="max-width: 400px; height: auto; text-align: center;">
+             <div id="modal-confirm-container" style="padding: 2rem;">
+                <p style="font-size: 1.1rem; margin-top: 0; margin-bottom: 1.5rem;">Are you sure you want to delete this zone?</p>
+                <div>
+                    <button id="confirm-delete-btn" class="project-btn" style="background-color: #d32f2f; color: white;">Yes, Delete</button>
+                    <button id="cancel-delete-btn" class="project-btn add-zone-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -698,6 +746,12 @@
             const closePlotModalBtn = document.getElementById('close-plot-modal-btn');
             const modalPlotContainer = document.getElementById('modal-plot-container');
             const progressBarContainer = document.querySelector('.progress-bar-container');
+            const inlineConfirmModal = document.getElementById('inline-confirm-modal');
+            const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+            const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+            const downloadProjectBtn = document.getElementById('download-project-btn');
+            const projectNameDisplay = document.getElementById('project-name-display');
+            const projectIdInput = document.getElementById('project-id');
 
 
             // --- CONFIGURATION FLAG ---
@@ -707,23 +761,83 @@
             let plantDataCache = {}; // Cache of all plant objects seen so far, using ID as key
             let currentSearchIds = []; // Array of plant IDs from the last search
             let projectData = {
-                plants: {}, // { plantId: { zoneId: null | zoneId } }
+                plants: {}, // { plantId: { zoneId: null | zoneId, ...plantData } }
                 zones: [], // { id: zoneId, name: 'Zone Name' }
                 nextZoneId: 1,
             };
             let selectedPlantId = null;
+            let zoneToDeleteId = null;
 
             // --- INITIALIZATION ---
-            function init() {
-                loadProjectFromUrl();
+            async function init() {
+                const params = new URLSearchParams(window.location.search);
+                const projectId = params.get('id');
+
+                await loadProjectDataFromBackend(projectId); 
+
                 const defaultQuery = "what are some popular plants for shady areas?";
                 chatInput.value = defaultQuery;
-                aiSearch(defaultQuery); // Initial load with default question
+                aiSearch(defaultQuery); 
                 renderRightPane();
                 renderProject(projectZoneLeft);
                 setupDragAndDrop(projectZoneLeft);
                 setupDragAndDrop(modalPlotContainer);
             }
+            
+            async function loadProjectDataFromBackend(projectId) {
+                if (!projectId) {
+                    projectNameDisplay.textContent = "No Project Loaded";
+                    projectIdInput.value = '';
+                    return;
+                }
+                
+                projectIdInput.value = projectId;
+
+                try {
+                    // This is where you would fetch data from your backend.
+                    // For demonstration, we'll use a mock response.
+                    // const response = await fetch(`/project/${projectId}`);
+                    // if (!response.ok) throw new Error('Failed to load project');
+                    // const backendData = await response.json();
+                    
+                    // Mock backend response:
+                    const mockBackendResponse = {
+                        projectName: `My Garden Project (${projectId})`,
+                        projectData: {
+                            plants: {
+                                "a04cef6e-b382-41bd-86c6-06733c0d6626": { "plant_id": "a04cef6e-b382-41bd-86c6-06733c0d6626", "common_name": "Abutilon pictum 'Thompsonii'", "zoneId": 1 }
+                            },
+                            zones: [{ "id": 1, "name": "Shade Area" }],
+                            nextZoneId: 2
+                        }
+                    };
+                    const backendData = mockBackendResponse; // Using mock for now
+
+                    projectNameDisplay.textContent = backendData.projectName;
+
+                    if (backendData.projectData && backendData.projectData.plants && backendData.projectData.zones) {
+                        const dataToLoad = backendData.projectData;
+                        const cleanedPlants = {};
+                        Object.keys(dataToLoad.plants).forEach(plantId => {
+                            const plant = dataToLoad.plants[plantId];
+                            if (plant && plant.plant_id && plant.common_name) {
+                                cleanedPlants[plantId] = plant;
+                                // Make sure plant data is in the cache for rendering
+                                if (!plantDataCache[plantId]) {
+                                    plantDataCache[plantId] = plant;
+                                }
+                            }
+                        });
+                        dataToLoad.plants = cleanedPlants;
+                        projectData = dataToLoad;
+                    }
+
+                } catch (error) {
+                    console.error("Failed to load project data from backend:", error);
+                    projectNameDisplay.textContent = "Error Loading Project";
+                }
+            }
+
 
             // --- RENDERING LOGIC ---
             function renderRightPane() {
@@ -806,23 +920,9 @@
                     </div>`;
             }
 
-            function renderProject(container) {
+            function renderProject(container, isModalView = false) {
                 const plantCount = Object.keys(projectData.plants).length;
-                let projectContent = `
-                    <div class="project-header">
-                        <h2><span class="project-header-icon">🌳</span> My Plot</h2>
-                        <span class="item-count-badge">${plantCount} items</span>
-                    </div>
-                    <div class="project-actions">
-                         <button class="project-btn add-zone-btn" data-action="add-zone">+ Add Zone</button>
-                         <button class="project-btn expand-btn" data-action="expand-plot">Expand ↗</button>
-                    </div>`;
-
-                if (plantCount > 0) {
-                    projectContent += `<p class="project-help-text">💡 Drag plants to organize into zones.</p>`;
-                }
-                
-                projectContent += `
+                let unassignedContent = `
                      <div class="zone" data-zone-id="null">
                         <div class="zone-header">
                             <div class="zone-title-container"><h4>Unassigned</h4></div>
@@ -832,36 +932,48 @@
                         </ul>
                     </div>`;
 
-                projectData.zones.forEach(zone => {
-                    projectContent += `
-                        <div class="zone" data-zone-id="${zone.id}">
-                            <div class="zone-header">
-                                <div class="zone-title-container">
-                                    <h4>${zone.name}</h4>
-                                </div>
-                                <div class="zone-header-actions">
-                                    <button class="edit-zone-btn" data-zone-id="${zone.id}">✏️</button>
-                                    <button class="delete-zone-btn" data-zone-id="${zone.id}">&times;</button>
-                                </div>
+                let zonesContent = projectData.zones.map(zone => `
+                    <div class="zone" data-zone-id="${zone.id}">
+                        <div class="zone-header">
+                            <div class="zone-title-container">
+                                <h4>${zone.name}</h4>
                             </div>
-                            <ul class="zone-plant-list" data-zone-id="${zone.id}">
-                                ${getPlantsForZone(zone.id)}
-                            </ul>
-                        </div>`;
-                });
+                            <div class="zone-header-actions">
+                                <button class="edit-zone-btn" data-zone-id="${zone.id}">✏️</button>
+                                <button class="delete-zone-btn" data-zone-id="${zone.id}">&times;</button>
+                            </div>
+                        </div>
+                        <ul class="zone-plant-list" data-zone-id="${zone.id}">
+                            ${getPlantsForZone(zone.id)}
+                        </ul>
+                    </div>`).join('');
+                
+                let projectContent = `
+                    <div class="project-header">
+                        <h2><span class="project-header-icon">🌳</span> My Plot</h2>
+                        <span class="item-count-badge">${plantCount} items</span>
+                    </div>
+                    <div class="project-actions">
+                         <button class="project-btn add-zone-btn" data-action="add-zone">+ Add Zone</button>
+                         ${!isModalView ? '<button class="project-btn expand-btn" data-action="expand-plot">Expand ↗</button>' : ''}
+                    </div>
+                    ${plantCount > 0 ? `<p class="project-help-text">💡 Drag plants to organize into zones.</p>` : ''}
+                    ${unassignedContent}
+                    ${isModalView ? `<div class="plot-zones-grid">${zonesContent}</div>` : zonesContent}
+                `;
+
 
                 container.innerHTML = projectContent;
             }
 
             function getPlantsForZone(zoneId) {
                 let plantHtml = '';
-                const plantIds = Object.keys(projectData.plants).filter(id => projectData.plants[id].zoneId === zoneId);
+                const plantsInZone = Object.values(projectData.plants).filter(plant => plant && plant.zoneId === zoneId);
 
-                if (plantIds.length === 0) return '<li><small style="color: #888; padding-left: 0.5rem;">No plants in this zone.</small></li>';
+                if (plantsInZone.length === 0) return '<li><small style="color: #888; padding-left: 0.5rem;">No plants in this zone.</small></li>';
 
-                plantIds.forEach(plantId => {
-                    const plant = plantDataCache[plantId]; // Use cache for details
-                     if (plant) {
+                plantsInZone.forEach(plant => {
+                    if (plant && plant.plant_id && plant.common_name) {
                         plantHtml += `
                             <li class="project-plant-item" draggable="true" data-plant-id="${plant.plant_id}">
                                 <span class="project-item-icon">🪴</span>
@@ -870,6 +982,11 @@
                             </li>`;
                     }
                 });
+                
+                if (!plantHtml) {
+                    return '<li><small style="color: #888; padding-left: 0.5rem;">No plants in this zone.</small></li>';
+                }
+
                 return plantHtml;
             }
 
@@ -894,7 +1011,6 @@
                     const data = await response.json();
                     console.log('Response data:', data);
                     
-                    // Update the plant results
                     currentSearchIds = [];
                     if (data.results) {
                         console.log('Found plants:', data.results.length);
@@ -907,7 +1023,6 @@
                     }
                     filterAndDisplayPlants();
                     
-                    // Update AI response if available
                     if (data.response) {
                         aiResponseContainer.innerHTML = `<p>${data.response}</p>`;
                     }
@@ -941,7 +1056,6 @@
             }
 
             async function aiSearch(query) {
-                // Clear details pane on new search
                 selectedPlantId = null;
                 renderRightPane();
 
@@ -951,19 +1065,15 @@
                 try {
                     let result;
                     if (useMockApi) {
-                        console.log("Using Mock API data.");
                         result = await getMockData(query);
                     } else {
                         try {
-                             console.log("Attempting to use live API...");
                             const response = await fetch('/search', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ query: query, context: "" })
                             });
-                            if (!response.ok) {
-                                throw new Error(`HTTP error! status: ${response.status}`);
-                            }
+                            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                             result = await response.json();
                         } catch (liveError) {
                             console.error("Live API call failed, falling back to mock data:", liveError);
@@ -974,17 +1084,14 @@
 
                     aiResponseContainer.innerHTML = `<p>${result.response || 'Here are the plants based on your request.'}</p>`;
                     
-                    // Populate search box with search_phrase if available
                     if (result.search_phrase) {
                         searchInput.value = result.search_phrase;
-                        console.log('Populated search box with:', result.search_phrase);
                     }
                     
                     const newPlants = result.plants || [];
                     currentSearchIds = [];
                     newPlants.forEach(plant => {
-                        plantDataCache[plant.plant_id] = plant; // Add/update plant in cache
-                        console.log('Caching plant data for plant.plant_id:', plant.plant_id);
+                        plantDataCache[plant.plant_id] = plant;
                         currentSearchIds.push(plant.plant_id);
                     });
                     filterAndDisplayPlants();
@@ -1009,14 +1116,15 @@
                 if (projectData.plants[plantId]) {
                     delete projectData.plants[plantId];
                 } else {
-                    if (plantDataCache[plantId]) { // Ensure plant data is in cache before adding
-                        projectData.plants[plantId] = { zoneId: null };
+                    const plantInfo = plantDataCache[plantId];
+                    if (plantInfo) {
+                         projectData.plants[plantId] = { ...plantInfo, zoneId: null };
                     }
                 }
-                filterAndDisplayPlants(); // re-render cards to update buttons
+                filterAndDisplayPlants();
                 renderProject(projectZoneLeft);
                 if (plotModal.style.display === 'flex') {
-                    renderProject(modalPlotContainer);
+                    renderProject(modalPlotContainer, true);
                 }
             }
             
@@ -1026,22 +1134,27 @@
                 projectData.nextZoneId++;
                 renderProject(projectZoneLeft);
                 if (plotModal.style.display === 'flex') {
-                    renderProject(modalPlotContainer);
+                    renderProject(modalPlotContainer, true);
                 }
             }
 
-            function deleteZone(zoneId) {
-                if (!confirm("Are you sure you want to delete this zone? Plants in it will become unassigned.")) return;
-                for (const plantId in projectData.plants) {
-                    if (projectData.plants[plantId].zoneId === zoneId) {
+            function confirmDeleteZone() {
+                if (zoneToDeleteId === null) return;
+
+                Object.keys(projectData.plants).forEach(plantId => {
+                    if (projectData.plants[plantId].zoneId === zoneToDeleteId) {
                         projectData.plants[plantId].zoneId = null;
                     }
-                }
-                projectData.zones = projectData.zones.filter(z => z.id !== zoneId);
+                });
+                projectData.zones = projectData.zones.filter(z => z.id !== zoneToDeleteId);
+                
                 renderProject(projectZoneLeft);
-                 if (plotModal.style.display === 'flex') {
-                    renderProject(modalPlotContainer);
+                if (plotModal.style.display === 'flex') {
+                    renderProject(modalPlotContainer, true);
                 }
+                
+                inlineConfirmModal.style.display = 'none';
+                zoneToDeleteId = null;
             }
 
             function movePlantToZone(plantId, zoneId) {
@@ -1049,46 +1162,73 @@
                     projectData.plants[plantId].zoneId = zoneId;
                     renderProject(projectZoneLeft);
                      if (plotModal.style.display === 'flex') {
-                        renderProject(modalPlotContainer);
+                        renderProject(modalPlotContainer, true);
                     }
                 }
             }
 
             function openPlotModal() {
-                renderProject(modalPlotContainer);
+                renderProject(modalPlotContainer, true);
                 plotModal.style.display = 'flex';
             }
             
             function closePlotModal() {
                 plotModal.style.display = 'none';
-                renderProject(projectZoneLeft); // Sync changes back to the sidebar
+                renderProject(projectZoneLeft);
             }
+            
+            function downloadProjectAsCSV() {
+                if (Object.keys(projectData.plants).length === 0) {
+                    alert("Your plot is empty. Add some plants before downloading.");
+                    return;
+                }
+
+                let csvContent = "data:text/csv;charset=utf-8,";
+                csvContent += "Zone Name,Plant Common Name,Scientific Name\r\n";
+
+                const escapeCSV = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
+
+                const unassignedPlants = Object.values(projectData.plants).filter(p => p.zoneId === null);
+                unassignedPlants.forEach(plant => {
+                    const row = ["Unassigned", escapeCSV(plant.common_name), escapeCSV(plant.scientific_name)].join(",");
+                    csvContent += row + "\r\n";
+                });
+
+                projectData.zones.forEach(zone => {
+                    const plantsInZone = Object.values(projectData.plants).filter(p => p.zoneId === zone.id);
+                    plantsInZone.forEach(plant => {
+                        const row = [escapeCSV(zone.name), escapeCSV(plant.common_name), escapeCSV(plant.scientific_name)].join(",");
+                        csvContent += row + "\r\n";
+                    });
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                const projectName = projectNameDisplay.textContent.replace('🪴', '').trim() || 'plotify-project';
+                link.setAttribute("download", `${projectName}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
 
             function generateShareUrl() {
                 try {
                     const dataStr = JSON.stringify(projectData);
                     const encoded = btoa(dataStr);
                     const url = `${window.location.origin}${window.location.pathname}?project=${encoded}`;
-                    navigator.clipboard.writeText(url).then(() => showCopiedMessage());
+                    navigator.clipboard.writeText(url).then(() => showCopiedMessage("Share URL copied to clipboard!"));
                 } catch (e) { console.error("Failed to generate share URL", e); alert("Could not generate share URL."); }
             }
             
-            function loadProjectFromUrl() {
-                const params = new URLSearchParams(window.location.search);
-                const encodedData = params.get('project');
-                if (encodedData) {
-                    try {
-                        const decoded = atob(encodedData);
-                        const parsed = JSON.parse(decoded);
-                        if (parsed.plants && parsed.zones) { projectData = parsed; }
-                    } catch(e) { console.error("Failed to load project from URL", e); }
-                }
-            }
+            function showCopiedMessage(message) {
+                const existingMsg = document.querySelector('.copied-message');
+                if(existingMsg) existingMsg.remove();
 
-            function showCopiedMessage() {
                 const msg = document.createElement('div');
                 msg.className = 'copied-message';
-                msg.textContent = 'Project URL copied to clipboard!';
+                msg.textContent = message;
                 document.body.appendChild(msg);
                 setTimeout(() => { msg.style.opacity = '1'; msg.style.bottom = '40px'; }, 10);
                 setTimeout(() => {
@@ -1142,9 +1282,10 @@
 
                 const targetId = e.target.id;
                 const closestAction = e.target.closest('[data-action]');
-                const closestBtn = e.target.closest('button');
-
+                
                 if(targetId === 'share-project-btn') generateShareUrl();
+                if(targetId === 'download-project-btn') downloadProjectAsCSV();
+
                 if (targetId === 'back-to-project-btn') {
                     selectedPlantId = null;
                     renderRightPane();
@@ -1167,7 +1308,6 @@
                     if (action === 'view-details') {
                         selectedPlantId = closestAction.dataset.plantId;
                         renderRightPane();
-                        // No need to re-filter, just update selection style
                         const currentlySelected = document.querySelector('.plant-card.selected');
                         if(currentlySelected) currentlySelected.classList.remove('selected');
                         const newSelected = document.querySelector(`.plant-card[data-plant-id="${selectedPlantId}"]`);
@@ -1180,7 +1320,10 @@
                 if (closePlotModalBtn && e.target === closePlotModalBtn) closePlotModal();
 
                 const deleteZoneBtn = e.target.closest('.delete-zone-btn');
-                if (deleteZoneBtn) deleteZone(parseInt(deleteZoneBtn.dataset.zoneId, 10));
+                if (deleteZoneBtn) {
+                    zoneToDeleteId = parseInt(deleteZoneBtn.dataset.zoneId, 10);
+                    inlineConfirmModal.style.display = 'flex';
+                }
 
                 const editZoneBtn = e.target.closest('.edit-zone-btn');
                 if (editZoneBtn) {
@@ -1196,14 +1339,14 @@
                             if (zone) zone.name = newName;
                         }
                         renderProject(projectZoneLeft); 
-                        if (plotModal.style.display === 'flex') renderProject(modalPlotContainer);
+                        if (plotModal.style.display === 'flex') renderProject(modalPlotContainer, true);
                     };
                     input.addEventListener('blur', saveName);
                     input.addEventListener('keydown', (keyEvent) => {
                         if (keyEvent.key === 'Enter') saveName();
                         else if (keyEvent.key === 'Escape') {
                             renderProject(projectZoneLeft);
-                            if (plotModal.style.display === 'flex') renderProject(modalPlotContainer);
+                            if (plotModal.style.display === 'flex') renderProject(modalPlotContainer, true);
                         }
                     });
                     titleContainer.innerHTML = '';
@@ -1218,6 +1361,12 @@
             plotModal.addEventListener('click', (e) => {
                 if (e.target === plotModal) closePlotModal();
             });
+
+            confirmDeleteBtn.addEventListener('click', confirmDeleteZone);
+            cancelDeleteBtn.addEventListener('click', () => {
+                inlineConfirmModal.style.display = 'none';
+                zoneToDeleteId = null;
+            });
             
             chatInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') aiSearch(chatInput.value) });
             searchInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') searchPlants(searchInput.value) });
@@ -1228,3 +1377,4 @@
     </script>
 </body>
 </html>
+
