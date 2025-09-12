@@ -661,6 +661,7 @@
             <input type="hidden" id="project-id" value="">
             <div class="header-actions">
                 <button class="project-btn download-btn" id="download-project-btn">Download Project</button>
+                <button class="project-btn save-btn" id="save-project-btn">Save Project</button>
                 <button class="project-btn share-btn" id="share-project-btn">Share Project</button>
             </div>
             <div class="progress-bar-container">
@@ -769,75 +770,28 @@
             let zoneToDeleteId = null;
 
             // --- INITIALIZATION ---
-            async function init() {
-                const params = new URLSearchParams(window.location.search);
-                const projectId = params.get('id');
-
-                await loadProjectDataFromBackend(projectId); 
-
+            function init() {
+                loadProject();
+                loadProjectDetails();
                 const defaultQuery = "what are some popular plants for shady areas?";
                 chatInput.value = defaultQuery;
-                aiSearch(defaultQuery); 
+                aiSearch(defaultQuery); // Initial load with default question
                 renderRightPane();
                 renderProject(projectZoneLeft);
                 setupDragAndDrop(projectZoneLeft);
                 setupDragAndDrop(modalPlotContainer);
             }
             
-            async function loadProjectDataFromBackend(projectId) {
-                if (!projectId) {
-                    projectNameDisplay.textContent = "No Project Loaded";
-                    projectIdInput.value = '';
-                    return;
-                }
-                
-                projectIdInput.value = projectId;
+            function loadProjectDetails() {
+                // In a real app, this would come from a backend call
+                const backendData = {
+                    projectName: "My First Garden",
+                    projectId: "proj_12345xyz"
+                };
 
-                try {
-                    // This is where you would fetch data from your backend.
-                    // For demonstration, we'll use a mock response.
-                    // const response = await fetch(`/project/${projectId}`);
-                    // if (!response.ok) throw new Error('Failed to load project');
-                    // const backendData = await response.json();
-                    
-                    // Mock backend response:
-                    const mockBackendResponse = {
-                        projectName: `My Garden Project (${projectId})`,
-                        projectData: {
-                            plants: {
-                                "a04cef6e-b382-41bd-86c6-06733c0d6626": { "plant_id": "a04cef6e-b382-41bd-86c6-06733c0d6626", "common_name": "Abutilon pictum 'Thompsonii'", "zoneId": 1 }
-                            },
-                            zones: [{ "id": 1, "name": "Shade Area" }],
-                            nextZoneId: 2
-                        }
-                    };
-                    const backendData = mockBackendResponse; // Using mock for now
-
-                    projectNameDisplay.textContent = backendData.projectName;
-
-                    if (backendData.projectData && backendData.projectData.plants && backendData.projectData.zones) {
-                        const dataToLoad = backendData.projectData;
-                        const cleanedPlants = {};
-                        Object.keys(dataToLoad.plants).forEach(plantId => {
-                            const plant = dataToLoad.plants[plantId];
-                            if (plant && plant.plant_id && plant.common_name) {
-                                cleanedPlants[plantId] = plant;
-                                // Make sure plant data is in the cache for rendering
-                                if (!plantDataCache[plantId]) {
-                                    plantDataCache[plantId] = plant;
-                                }
-                            }
-                        });
-                        dataToLoad.plants = cleanedPlants;
-                        projectData = dataToLoad;
-                    }
-
-                } catch (error) {
-                    console.error("Failed to load project data from backend:", error);
-                    projectNameDisplay.textContent = "Error Loading Project";
-                }
+                projectNameDisplay.textContent = backendData.projectName;
+                projectIdInput.value = backendData.projectId;
             }
-
 
             // --- RENDERING LOGIC ---
             function renderRightPane() {
@@ -1221,7 +1175,55 @@
                     navigator.clipboard.writeText(url).then(() => showCopiedMessage("Share URL copied to clipboard!"));
                 } catch (e) { console.error("Failed to generate share URL", e); alert("Could not generate share URL."); }
             }
+
+            function saveProjectToLocal() {
+                try {
+                    const dataStr = JSON.stringify(projectData);
+                    localStorage.setItem('plotifyProject', dataStr);
+                    showCopiedMessage("Project Saved");
+                } catch (e) {
+                    console.error("Failed to save project to local storage", e);
+                    alert("Could not save project.");
+                }
+            }
             
+            function loadProject() {
+                const params = new URLSearchParams(window.location.search);
+                const urlData = params.get('project');
+                const localData = localStorage.getItem('plotifyProject');
+
+                let dataToLoad = null;
+
+                if (urlData) {
+                    try {
+                        const decoded = atob(urlData);
+                        dataToLoad = JSON.parse(decoded);
+                    } catch(e) { console.error("Failed to parse project data from URL", e); }
+                } else if (localData) {
+                     try {
+                        dataToLoad = JSON.parse(localData);
+                    } catch(e) { console.error("Failed to parse project data from Local Storage", e); }
+                }
+
+                if (dataToLoad && dataToLoad.plants && dataToLoad.zones) {
+                    const cleanedPlants = {};
+                    Object.keys(dataToLoad.plants).forEach(plantId => {
+                        const plant = dataToLoad.plants[plantId];
+                        if (plant && plant.plant_id && plant.common_name) {
+                            cleanedPlants[plantId] = plant;
+                        }
+                    });
+                    dataToLoad.plants = cleanedPlants;
+
+                    projectData = dataToLoad;
+                    Object.values(projectData.plants).forEach(plant => {
+                        if (plant && plant.plant_id) {
+                            plantDataCache[plant.plant_id] = plant;
+                        }
+                    });
+                }
+            }
+
             function showCopiedMessage(message) {
                 const existingMsg = document.querySelector('.copied-message');
                 if(existingMsg) existingMsg.remove();
@@ -1284,6 +1286,7 @@
                 const closestAction = e.target.closest('[data-action]');
                 
                 if(targetId === 'share-project-btn') generateShareUrl();
+                if(targetId === 'save-project-btn') saveProjectToLocal();
                 if(targetId === 'download-project-btn') downloadProjectAsCSV();
 
                 if (targetId === 'back-to-project-btn') {
