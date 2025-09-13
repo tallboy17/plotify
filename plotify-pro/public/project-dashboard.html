@@ -17,6 +17,7 @@
             --white: #fff;
             --danger-color: #c62828;
             --danger-bg: #fff0f0;
+            --cta-blue: #4285F4; /* New blue for the main CTA button */
             --border-radius: 10px;
             --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
             --status-completed-bg: #e8f5e9;
@@ -34,7 +35,7 @@
             line-height: 1.6;
         }
 
-        /* Header from project.html */
+        /* Header from project.html - Modified */
         header {
             background: var(--white);
             padding: 0 2rem;
@@ -44,12 +45,59 @@
             justify-content: space-between;
             box-shadow: var(--box-shadow);
             height: 60px;
+            position: relative; /* For progress bar positioning */
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
 
         header .logo {
             font-size: 1.6rem;
             font-weight: 700;
             color: var(--primary-color);
+        }
+
+        .header-divider {
+            border-left: 1px solid var(--light-gray);
+            height: 24px;
+        }
+
+        .header-title {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #555;
+        }
+
+        /* Progress Bar */
+        .progress-bar-container {
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background-color: transparent;
+            overflow: hidden;
+            visibility: hidden;
+            z-index: 11;
+        }
+
+        .progress-bar {
+            width: 40%;
+            height: 100%;
+            background-color: var(--primary-color);
+            animation: progressBarAnimation 1.5s ease-in-out infinite;
+        }
+
+        @keyframes progressBarAnimation {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(350%);
+            }
         }
 
         /* Main Projects Container */
@@ -59,28 +107,15 @@
             padding: 2rem;
         }
 
-        /* Projects Header (Title and New Project Button) */
-        .projects-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-
-        .projects-header h1 {
-            margin: 0;
-            color: var(--primary-color);
-        }
+        /* Projects Header (Title and New Project Button) - REMOVED */
 
         /* Main Button Styles */
         .btn {
-            padding: 0.75rem 1.5rem;
+            padding: 0.6rem 1.2rem; /* Adjusted padding */
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 0.95rem;
+            font-size: 0.9rem; /* Adjusted font size */
             font-weight: 600;
             transition: background-color 0.2s, transform 0.2s;
             text-decoration: none; /* Removed underline from links styled as buttons */
@@ -88,6 +123,21 @@
 
         .btn:hover {
             transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-cta {
+            background-color: var(--cta-blue);
+            color: var(--white);
+            box-shadow: 0 4px 12px rgba(66, 133, 244, 0.25);
+        }
+        .btn-cta:hover {
+             background-color: #3367D6;
         }
 
         .btn-primary {
@@ -211,10 +261,19 @@
             flex-grow: 1;
         }
 
-        .project-card-controls {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
+        .project-card-status {
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .status-in-progress {
+            background-color: var(--status-inprogress-bg);
+            color: var(--status-inprogress-text);
+        }
+        .status-completed {
+            background-color: var(--status-completed-bg);
+            color: var(--status-completed-text);
         }
         
         .project-card-client {
@@ -259,17 +318,23 @@
             min-height: 80px;
         }
 
-        .project-card-dates-edit {
-            display: flex;
-            justify-content: space-between;
+        .inline-edit-input.input-error, 
+        .inline-edit-textarea.input-error {
+            border: 1px solid var(--danger-color);
+            background-color: var(--danger-bg);
+        }
+
+        .project-card-meta-edit {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 1rem;
             font-size: 0.8rem;
             color: #777;
         }
-        .project-card-dates-edit div {
+        .project-card-meta-edit div {
             flex: 1;
         }
-        .project-card-dates-edit label {
+        .project-card-meta-edit label {
             display: block;
             margin-bottom: 0.25rem;
         }
@@ -277,8 +342,10 @@
             font-size: 0.9rem;
             color: #555;
             box-sizing: border-box;
+            height: 30px;
+            width: 100%;
         }
-
+        
         .project-card-dates {
             font-size: 0.8rem;
             color: #777;
@@ -347,14 +414,13 @@
             flex: 1;
             text-align: center;
         }
-
+        
         /* Toggle Switch Styles */
         .status-toggle {
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            font-size: 0.8rem;
-            font-weight: 600;
+            font-size: 0.9rem;
             color: #555;
         }
 
@@ -398,12 +464,12 @@
             background-color: var(--status-completed-text);
             transform: translateX(14px);
         }
-        
+
         /* Responsive Adjustments */
         @media (max-width: 768px) {
             .projects-container { padding: 1rem; }
-            .projects-header h1 { font-size: 1.5rem; }
-            .projects-grid { grid-template-columns: 1fr; }
+            header { padding: 0 1rem; }
+            .header-title { display: none; } /* Hide title on smaller screens */
         }
 
     </style>
@@ -411,15 +477,18 @@
 <body>
 
     <header>
-        <div class="logo">Plotify Pro 🪴</div>
+        <div class="header-left">
+            <div class="logo">Plotify Pro 🪴</div>
+            <div class="header-divider"></div>
+            <div class="header-title">My Projects</div>
+        </div>
+        <button class="btn btn-cta" id="new-project-btn">+ New Project</button>
+        <div class="progress-bar-container">
+            <div class="progress-bar"></div>
+        </div>
     </header>
 
     <main class="projects-container">
-        <div class="projects-header">
-            <h1>My Landscape Projects</h1>
-            <button class="btn btn-primary" id="new-project-btn">+ Create New Project</button>
-        </div>
-
         <div class="project-filters">
             <button class="filter-btn active" data-filter="all">All</button>
             <button class="filter-btn" data-filter="in-progress">In Progress</button>
@@ -432,38 +501,293 @@
     </main>
         <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // --- CONFIGURATION ---
+            const useMock = false; // Set to false to use the backend API
+            const API_ENDPOINT = '/api/users/projects';
+
+            // --- DOM ELEMENTS ---
             const projectsGrid = document.getElementById('projects-grid');
             const filterContainer = document.querySelector('.project-filters');
             const newProjectBtn = document.getElementById('new-project-btn');
+            const progressBarContainer = document.querySelector('.progress-bar-container');
 
-            let mockProjects = [
-                { id: 1, name: "Backyard Oasis Renovation for the Johnson Family", status: "in-progress", description: "A complete overhaul of the backyard with a new patio area and drought-tolerant plants.", plantCount: 12, zoneCount: 3, link: "project.html", client: { name: "The Johnson Family" }, startDate: "2025-08-15", completedDate: null },
-                { id: 2, name: "Front Yard Redesign", status: "completed", description: "Replaced the front lawn with native flowers and shrubs to attract pollinators.", plantCount: 25, zoneCount: 4, link: "project.html", client: null, startDate: "2025-06-01", completedDate: "2025-07-20" },
-                { id: 3, name: "Community Garden Plot", status: "in-progress", description: "Setting up a raised bed for vegetables and herbs for the summer season.", plantCount: 8, zoneCount: 1, link: "project.html", client: null, startDate: "2025-09-01", completedDate: null },
-                { id: 4, name: "Balcony Herb Garden", status: "completed", description: "Container garden setup for culinary herbs on a small city balcony.", plantCount: 10, zoneCount: 1, link: "project.html", client: { name: "Anna Smith" }, startDate: "2025-07-10", completedDate: "2025-07-12" },
-                { id: 5, name: "Side Yard Walkway", status: "in-progress", description: "Planting shade-loving ground cover and perennials along a new stone path.", plantCount: 18, zoneCount: 2, link: "project.html", client: null, startDate: "2025-09-05", completedDate: null },
-                { id: 6, name: "Poolside Landscaping", status: "completed", description: "Tropical-themed plants that are low-mess and can handle full sun.", plantCount: 15, zoneCount: 2, link: "project.html", client: { name: "Maple Crest HOA" }, startDate: "2025-05-10", completedDate: "2025-06-15" },
-            ];
-            
+            // --- APP STATE ---
+            let projects = [];
             let projectToDeleteId = null;
             let editingProjectId = null;
+            
+            const initialMockProjects = [
+                {
+                    "user_id": "68c492f0d0ea881f407bf5dc",
+                    "project_id": "proj_1",
+                    "project_name": "Backyard Oasis Renovation",
+                    "status": "in-progress",
+                    "description": "A complete overhaul of the backyard with a new patio area and drought-tolerant plants.",
+                    "client": "The Johnson Family",
+                    "startDate": "2025-08-15",
+                    "completedDate": null,
+                    "projectData": { "plants": { "p1": {}, "p2": {} }, "zones": [ { "id": 1, "name": "Patio" } ] }
+                },
+                {
+                    "user_id": "68c492f0d0ea881f407bf5dc",
+                    "project_id": "proj_2",
+                    "project_name": "Front Yard Redesign",
+                    "status": "completed",
+                    "description": "Replaced the front lawn with native flowers and shrubs to attract pollinators.",
+                    "client": null,
+                    "startDate": "2025-06-01",
+                    "completedDate": "2025-07-20",
+                    "projectData": { "plants": { "p1": {}, "p2": {}, "p3": {} }, "zones": [ { "id": 1, "name": "Flower Bed" }, { "id": 2, "name": "Shrubbery" } ] }
+                },
+                {
+                    "user_id": "68c492f0d0ea881f407bf5dc",
+                    "project_id": "proj_3",
+                    "project_name": "Community Garden Plot",
+                    "status": "in-progress",
+                    "description": "Setting up a raised bed for vegetables and herbs for the summer season.",
+                    "client": null,
+                    "startDate": "2025-09-01",
+                    "completedDate": null,
+                    "projectData": { "plants": { "p1": {}, "p2": {} }, "zones": [ { "id": 1, "name": "Veggie Patch" } ] }
+                }
+            ];
 
+            // --- AUTH OBJECT ---
+            const authObject = {
+                userId: '68c492f0d0ea881f407bf5dc',
+                token: null,
+                isAuthenticated: false,
+                
+                // Login function
+                async login() {
+                    try {
+                        console.log(`Logging in user: ${this.userId}`);
+                        const response = await fetch('/api/auth/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ userId: this.userId })
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            this.token = data.token;
+                            this.isAuthenticated = true;
+                            console.log('Login successful, token received');
+                            return true;
+                        } else {
+                            console.error('Login failed:', await response.json());
+                            return false;
+                        }
+                    } catch (error) {
+                        console.error('Login error:', error);
+                        return false;
+                    }
+                },
+                
+                // Get auth headers
+                getAuthHeaders: function() {
+                    if (!this.isAuthenticated || !this.token) {
+                        throw new Error('Not authenticated. Please login first.');
+                    }
+                    return {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Content-Type': 'application/json'
+                    };
+                },
+                
+                // Check if token is valid
+                isTokenValid: function() {
+                    if (!this.token) return false;
+                    return this.isAuthenticated && this.token.length > 0;
+                }
+            };
+
+            // --- API & DATA FUNCTIONS ---
+            async function fetchProjects() {
+                progressBarContainer.style.visibility = 'visible';
+                try {
+                    if (useMock) {
+                        console.log("Using mock data.");
+                        await new Promise(resolve => setTimeout(resolve, 800)); // Simulate network delay
+                        return initialMockProjects;
+                    }
+                    
+                    // Ensure user is authenticated
+                    if (!authObject.isTokenValid()) {
+                        const loginSuccess = await authObject.login();
+                        if (!loginSuccess) throw new Error('Authentication failed');
+                    }
+                    
+                    console.log(`Fetching projects for user: ${authObject.userId}`);
+                    const response = await fetch(API_ENDPOINT, { headers: authObject.getAuthHeaders() });
+
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            const loginSuccess = await authObject.login();
+                            if (loginSuccess) {
+                                const retryResponse = await fetch(API_ENDPOINT, { headers: authObject.getAuthHeaders() });
+                                if (retryResponse.ok) return await retryResponse.json();
+                            }
+                        }
+                        throw new Error(`API request failed with status ${response.status}`);
+                    }
+                    
+                    return await response.json();
+
+                } catch (error) {
+                    console.error("Failed to fetch projects from API:", error);
+                    projectsGrid.insertAdjacentHTML('beforebegin', '<p style="color: red;">Could not load projects. Displaying sample data.</p>');
+                    return initialMockProjects;
+                } finally {
+                    progressBarContainer.style.visibility = 'hidden';
+                }
+            }
+            
+            async function createProject(projectToCreate) {
+                const card = document.querySelector(`.project-card[data-project-id="${projectToCreate.project_id}"]`);
+                const saveButton = card ? card.querySelector('.save-btn') : null;
+
+                if (saveButton) {
+                    saveButton.disabled = true;
+                    saveButton.textContent = 'Saving...';
+                }
+
+                try {
+                    if (useMock) {
+                        console.log("Mock Create: New project would be sent to the backend.", projectToCreate);
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        const newProjectFromServer = { ...projectToCreate, project_id: `server_id_${Date.now()}` };
+                        return newProjectFromServer;
+                    }
+
+                    if (!authObject.isTokenValid()) {
+                        const loginSuccess = await authObject.login();
+                        if (!loginSuccess) throw new Error('Authentication failed');
+                    }
+
+                    const payload = { ...projectToCreate };
+                    delete payload.project_id; // Backend will assign the ID
+
+                    const response = await fetch(`/users/projects`, {
+                        method: 'POST',
+                        headers: authObject.getAuthHeaders(),
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.text();
+                        throw new Error(`API error! status: ${response.status}. Message: ${errorData}`);
+                    }
+
+                    console.log('Project created successfully');
+                    return await response.json(); // Return the newly created project from the server
+
+                } catch (error) {
+                    console.error('Failed to create project:', error);
+                    alert('Error creating project. Please try again.');
+                    return null;
+                } finally {
+                    if (saveButton) {
+                        saveButton.disabled = false;
+                        saveButton.textContent = 'Save';
+                    }
+                }
+            }
+            
+            async function saveProject(projectToSave) {
+                const card = document.querySelector(`.project-card[data-project-id="${projectToSave.project_id}"]`);
+                const saveButton = card ? card.querySelector('.save-btn') : null;
+                
+                if(saveButton) {
+                    saveButton.disabled = true;
+                    saveButton.textContent = 'Saving...';
+                }
+
+                try {
+                    if (useMock) {
+                        console.log("Mock Save: Project data would be sent to the backend.", projectToSave);
+                        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+                        return true;
+                    }
+
+                    if (!authObject.isTokenValid()) {
+                        const loginSuccess = await authObject.login();
+                        if (!loginSuccess) throw new Error('Authentication failed');
+                    }
+                    
+                    const response = await fetch(`/users/projects/${projectToSave.project_id}`, {
+                        method: 'PUT',
+                        headers: authObject.getAuthHeaders(),
+                        body: JSON.stringify(projectToSave)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.text();
+                        throw new Error(`API error! status: ${response.status}. Message: ${errorData}`);
+                    }
+                    
+                    console.log('Project saved successfully');
+                    return true;
+
+                } catch (error) {
+                    console.error('Failed to save project:', error);
+                    alert('Error saving project. Please try again.'); 
+                    return false;
+                } finally {
+                     if(saveButton) {
+                        saveButton.disabled = false;
+                        saveButton.textContent = 'Save';
+                    }
+                }
+            }
+
+            async function deleteProject(projectId) {
+                try {
+                    if (useMock) {
+                        console.log(`Mock Delete: Project with id ${projectId} would be deleted.`);
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        return true;
+                    }
+
+                    if (!authObject.isTokenValid()) {
+                        const loginSuccess = await authObject.login();
+                        if (!loginSuccess) throw new Error('Authentication failed');
+                    }
+
+                    const response = await fetch(`/users/projects/${projectId}`, {
+                        method: 'DELETE',
+                        headers: authObject.getAuthHeaders()
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.text();
+                        throw new Error(`API error! status: ${response.status}. Message: ${errorData}`);
+                    }
+
+                    console.log('Project deleted successfully');
+                    return true;
+
+                } catch (error) {
+                    console.error('Failed to delete project:', error);
+                    alert('Error deleting project. Please try again.');
+                    return false;
+                }
+            }
+            
+            // --- UTILITY FUNCTIONS ---
             const formatDate = (dateString) => {
                 if (!dateString) return '';
                 const date = new Date(dateString);
                 const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-                const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
-                return adjustedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                return new Date(date.getTime() + userTimezoneOffset).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             };
 
-            const renderProjects = (filter = 'all') => {
+            // --- RENDER FUNCTION ---
+            const renderProjects = () => {
                 const activeFilter = document.querySelector('.filter-btn.active').dataset.filter;
                 projectsGrid.innerHTML = '';
 
-                const filteredProjects = mockProjects.filter(project => {
-                    if (activeFilter === 'all') return true;
-                    return project.status === activeFilter;
-                });
+                const filteredProjects = projects.filter(p => activeFilter === 'all' || p.status === activeFilter);
                 
                 if (filteredProjects.length === 0) {
                     projectsGrid.innerHTML = '<p>No projects found for this filter.</p>';
@@ -473,77 +797,72 @@
                 filteredProjects.forEach(project => {
                     const card = document.createElement('div');
                     card.className = 'project-card';
-                    card.dataset.projectId = project.id;
+                    card.dataset.projectId = project.project_id;
                     
-                    if (editingProjectId === project.id) {
-                        // --- RENDER EDITING VIEW ---
+                    const plantCount = project.projectData?.plants ? Object.keys(project.projectData.plants).length : 0;
+                    const zoneCount = project.projectData?.zones ? project.projectData.zones.length : 0;
+
+                    if (editingProjectId === project.project_id) {
                         card.innerHTML = `
-                            <input type="text" class="inline-edit-input" value="${project.name}" data-field="name">
+                            <input type="text" class="inline-edit-input" value="${project.project_name}" data-field="projectName" placeholder="Project Name (Required)">
                             <div class="project-card-header">
                                 <div class="project-card-header-main">
-                                    <input type="text" class="inline-edit-input client-input" placeholder="Client Name" value="${project.client ? project.client.name : ''}" data-field="client">
+                                    <input type="text" class="inline-edit-input client-input" placeholder="Client Name (Optional)" value="${project.client || ''}" data-field="client">
                                 </div>
-                                <!-- Status toggle is hidden during edit -->
                             </div>
-                            <textarea class="inline-edit-textarea" data-field="description">${project.description}</textarea>
-                            <div class="project-card-dates-edit">
+                            <textarea class="inline-edit-textarea" data-field="description" placeholder="Project Description (Required)">${project.description}</textarea>
+                            <div class="project-card-meta-edit">
                                 <div>
-                                    <label for="startDate-${project.id}">Started</label>
-                                    <input type="date" id="startDate-${project.id}" class="inline-edit-date" value="${project.startDate || ''}" data-field="startDate">
+                                    <label>Status</label>
+                                    <div class="status-toggle" style="padding-top: 5px;">
+                                        <label class="switch">
+                                            <input type="checkbox" data-field="status" ${project.status === 'completed' ? 'checked' : ''}>
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span class="status-text-edit" style="margin-left: 10px;">${project.status === 'completed' ? 'Completed' : 'In Progress'}</span>
+                                    </div>
+                                </div>
+                                <div></div>
+                                <div>
+                                    <label for="startDate-${project.project_id}">Started</label>
+                                    <input type="date" id="startDate-${project.project_id}" class="inline-edit-date" value="${project.startDate || ''}" data-field="startDate">
                                 </div>
                                 <div>
-                                    <label for="completedDate-${project.id}">Completed</label>
-                                    <input type="date" id="completedDate-${project.id}" class="inline-edit-date" value="${project.completedDate || ''}" data-field="completedDate">
+                                    <label for="completedDate-${project.project_id}">Completed</label>
+                                    <input type="date" id="completedDate-${project.project_id}" class="inline-edit-date" value="${project.completedDate || ''}" data-field="completedDate">
                                 </div>
                             </div>
                             <div class="project-card-stats">
                                <div class="stats-info">
-                                    <span>🌳 ${project.plantCount} Plants</span>
-                                    <span>🌿 ${project.zoneCount} Zones</span>
+                                    <span>🌳 ${plantCount} Plants</span>
+                                    <span>🌿 ${zoneCount} Zones</span>
                                 </div>
                             </div>
                             <div class="project-card-footer">
-                                <button class="btn btn-primary save-btn" data-project-id="${project.id}">Save</button>
+                                <button class="btn btn-primary save-btn" data-project-id="${project.project_id}">Save</button>
                                 <button class="btn btn-secondary cancel-edit-btn">Cancel</button>
                             </div>
                         `;
-
                     } else {
-                        // --- RENDER NORMAL VIEW ---
                         const statusText = project.status === 'in-progress' ? 'In Progress' : 'Completed';
-                        let footerContent;
-
-                        if (projectToDeleteId === project.id) {
-                             footerContent = `
-                                <div class="delete-confirmation">
-                                    <span>Delete project?</span>
-                                    <button class="cancel-delete-btn">No</button>
-                                    <button class="confirm-delete-btn" data-project-id="${project.id}">Yes, Delete</button>
-                                </div>
-                             `;
-                        } else {
-                            footerContent = `
-                                <a href="${project.link}?id=${project.id}" class="btn btn-primary">View</a>
-                                <button class="btn btn-secondary edit-btn" data-project-id="${project.id}">Edit</button>
-                            `;
-                        }
+                        let footerContent = (projectToDeleteId === project.project_id) ? `
+                            <div class="delete-confirmation">
+                                <span>Delete project?</span>
+                                <button class="cancel-delete-btn">No</button>
+                                <button class="confirm-delete-btn" data-project-id="${project.project_id}">Yes, Delete</button>
+                            </div>` : `
+                            <a href="/users/projects/${project.project_id}" class="btn btn-primary">View</a>
+                            <button class="btn btn-secondary edit-btn" data-project-id="${project.project_id}">Edit</button>
+                        `;
 
                         card.innerHTML = `
-                            ${projectToDeleteId !== project.id ? `<button class="card-delete-btn" data-project-id="${project.id}" title="Delete project">&times;</button>` : ''}
-                            <h2 class="project-card-title" title="${project.name}">${project.name}</h2>
+                            ${projectToDeleteId !== project.project_id ? `<button class="card-delete-btn" data-project-id="${project.project_id}" title="Delete project">&times;</button>` : ''}
+                            <h2 class="project-card-title" title="${project.project_name}">${project.project_name}</h2>
                             <div class="project-card-header">
                                 <div class="project-card-header-main">
-                                    ${project.client ? `<p class="project-card-client">Client: ${project.client.name}</p>` : '<p class="project-card-client">&nbsp;</p>'}
+                                    ${project.client ? `<p class="project-card-client">Client: ${project.client}</p>` : '<p class="project-card-client">&nbsp;</p>'}
                                 </div>
-                                <div class="project-card-controls">
-                                    <div class="status-toggle">
-                                        <span>${statusText}</span>
-                                        <label class="switch">
-                                            <input type="checkbox" class="status-toggle-input" data-project-id="${project.id}" ${project.status === 'completed' ? 'checked' : ''}>
-                                            <span class="slider"></span>
-                                        </label>
-                                    </div>
-                                </div>
+                                <span class="project-card-status status-${project.status}">${statusText}</span>
                             </div>
                             <p class="project-card-description">${project.description}</p>
                             <div class="project-card-dates">
@@ -552,21 +871,18 @@
                             </div>
                             <div class="project-card-stats">
                                <div class="stats-info">
-                                    <span>🌳 ${project.plantCount} Plants</span>
-                                    <span>🌿 ${project.zoneCount} Zones</span>
+                                    <span>🌳 ${plantCount} Plants</span>
+                                    <span>🌿 ${zoneCount} Zones</span>
                                 </div>
                             </div>
-                            <div class="project-card-footer">
-                                ${footerContent}
-                            </div>
+                            <div class="project-card-footer">${footerContent}</div>
                         `;
                     }
                     projectsGrid.appendChild(card);
                 });
             };
 
-            const getActiveFilter = () => document.querySelector('.filter-btn.active').dataset.filter;
-
+            // --- EVENT LISTENERS ---
             filterContainer.addEventListener('click', (e) => {
                 if (e.target.tagName === 'BUTTON') {
                     document.querySelector('.filter-btn.active').classList.remove('active');
@@ -578,114 +894,135 @@
             });
 
             newProjectBtn.addEventListener('click', () => {
-                const newId = mockProjects.length > 0 ? Math.max(...mockProjects.map(p => p.id)) + 1 : 1;
+                const newId = `proj_${Date.now()}`;
                 const newProject = {
-                    id: newId,
-                    name: "Untitled Project",
+                    project_id: newId,
+                    project_name: "",
                     status: "in-progress",
-                    description: "Add a description for your new project.",
-                    plantCount: 0,
-                    zoneCount: 0,
-                    link: "project.html",
+                    description: "",
                     client: null,
                     startDate: new Date().toISOString().split('T')[0],
-                    completedDate: null
+                    completedDate: null,
+                    projectData: { plants: {}, zones: [] }
                 };
-                mockProjects.unshift(newProject);
-                
+                projects.unshift(newProject);
                 document.querySelector('.filter-btn.active').classList.remove('active');
-                document.querySelector('.filter-btn[data-filter="all"]').classList.add('active');
-                
+                document.querySelector('[data-filter="all"]').classList.add('active');
                 projectToDeleteId = null;
-                editingProjectId = newId; // Immediately enter edit mode for the new project
+                editingProjectId = newId;
                 renderProjects();
             });
 
-            projectsGrid.addEventListener('click', (e) => {
+            projectsGrid.addEventListener('click', async (e) => {
                 const target = e.target;
-                
-                // --- Handle Edit Button Clicks ---
-                const editBtn = target.closest('.edit-btn');
-                if (editBtn) {
-                    editingProjectId = parseInt(editBtn.dataset.projectId, 10);
-                    projectToDeleteId = null; // Exit delete mode if active
-                    renderProjects();
-                    return; // Stop further processing for this click
-                }
+                const projectId = target.closest('.project-card')?.dataset.projectId;
 
-                // --- Handle Delete Button Clicks ---
-                const deleteBtn = target.closest('.card-delete-btn');
-                if (deleteBtn) {
-                    projectToDeleteId = parseInt(deleteBtn.dataset.projectId, 10);
-                    editingProjectId = null;
-                    renderProjects();
-                }
-
-                if (target.classList.contains('cancel-delete-btn')) {
+                if (target.closest('.edit-btn')) {
+                    editingProjectId = projectId;
                     projectToDeleteId = null;
                     renderProjects();
-                }
-                if (target.classList.contains('confirm-delete-btn')) {
-                    const idToDelete = parseInt(target.dataset.projectId, 10);
-                    mockProjects = mockProjects.filter(p => p.id !== idToDelete);
+                } else if (target.closest('.card-delete-btn')) {
+                    projectToDeleteId = projectId;
+                    editingProjectId = null;
+                    renderProjects();
+                } else if (target.matches('.cancel-delete-btn')) {
                     projectToDeleteId = null;
                     renderProjects();
-                }
-                
-                // --- Handle Edit Button Clicks ---
-                if (target.classList.contains('cancel-edit-btn')) {
-                    editingProjectId = null;
-                    renderProjects();
-                }
-                if (target.classList.contains('save-btn')) {
-                    const card = target.closest('.project-card');
-                    const idToSave = parseInt(target.dataset.projectId, 10);
-                    const project = mockProjects.find(p => p.id === idToSave);
-
-                    if (project) {
-                        const newName = card.querySelector('[data-field="name"]').value.trim();
-                        const newClientName = card.querySelector('[data-field="client"]').value.trim();
-                        const newDescription = card.querySelector('[data-field="description"]').value.trim();
-                        const newStartDate = card.querySelector('[data-field="startDate"]').value;
-                        const newCompletedDate = card.querySelector('[data-field="completedDate"]').value;
-                        
-                        project.name = newName || "Untitled Project";
-                        project.description = newDescription;
-                        project.startDate = newStartDate;
-                        project.completedDate = newCompletedDate || null; // Set to null if cleared
-
-                        if (newClientName) {
-                            project.client = { name: newClientName };
-                        } else {
-                            project.client = null;
-                        }
-                    }
-                    editingProjectId = null;
-                    renderProjects();
-                }
-            });
-            
-            projectsGrid.addEventListener('change', (e) => {
-                if (e.target.classList.contains('status-toggle-input')) {
-                    const projectId = parseInt(e.target.dataset.projectId, 10);
-                    const project = mockProjects.find(p => p.id === projectId);
-                    
-                    if (project) {
-                        project.status = e.target.checked ? 'completed' : 'in-progress';
-                        project.completedDate = e.target.checked ? new Date().toISOString().split('T')[0] : null;
+                } else if (target.matches('.confirm-delete-btn')) {
+                    const success = await deleteProject(projectId);
+                    if (success) {
+                        projects = projects.filter(p => p.project_id !== projectId);
+                        projectToDeleteId = null;
                         renderProjects();
                     }
+                } else if (target.matches('.cancel-edit-btn')) {
+                    const project = projects.find(p => p.project_id === projectId);
+                    if (project && !project.project_name && !project.description) {
+                        projects = projects.filter(p => p.project_id !== projectId);
+                    }
+                    editingProjectId = null;
+                    renderProjects();
+                } else if (target.matches('.save-btn')) {
+                    const card = target.closest('.project-card');
+                    const projectIndex = projects.findIndex(p => p.project_id === projectId);
+                    if (projectIndex === -1) return;
+
+                    const originalProject = projects[projectIndex];
+                    const updatedProject = { ...originalProject };
+                    
+                    const nameInput = card.querySelector('[data-field="projectName"]');
+                    const descriptionInput = card.querySelector('[data-field="description"]');
+                    nameInput.classList.remove('input-error');
+                    descriptionInput.classList.remove('input-error');
+                    
+                    let isValid = true;
+                    if (!nameInput.value.trim()) {
+                        nameInput.classList.add('input-error');
+                        isValid = false;
+                    }
+                    if (!descriptionInput.value.trim()) {
+                        descriptionInput.classList.add('input-error');
+                        isValid = false;
+                    }
+                    if (!isValid) return;
+
+                    updatedProject.project_name = nameInput.value.trim();
+                    updatedProject.description = descriptionInput.value.trim();
+                    updatedProject.client = card.querySelector('[data-field="client"]').value.trim() || null;
+                    updatedProject.startDate = card.querySelector('[data-field="startDate"]').value;
+                    updatedProject.completedDate = card.querySelector('[data-field="completedDate"]').value || null;
+                    
+                    const newStatus = card.querySelector('[data-field="status"]').checked ? 'completed' : 'in-progress';
+                    if (newStatus === 'completed' && originalProject.status !== 'completed') {
+                         updatedProject.completedDate = new Date().toISOString().split('T')[0];
+                    } else if (newStatus === 'in-progress' && originalProject.status === 'completed') {
+                        updatedProject.completedDate = null;
+                    }
+                    updatedProject.status = newStatus;
+
+                    const isNewProject = projectId.startsWith('proj_');
+
+                    if (isNewProject) {
+                        const newProjectFromServer = await createProject(updatedProject);
+                        if (newProjectFromServer) {
+                            editingProjectId = null;
+                            await init();
+                        }
+                    } else {
+                        const success = await saveProject(updatedProject);
+                        if (success) {
+                            projects[projectIndex] = updatedProject;
+                            editingProjectId = null;
+                            renderProjects();
+                        }
+                    }
                 }
             });
 
-            renderProjects();
+            projectsGrid.addEventListener('change', (e) => {
+                const card = e.target.closest('.project-card');
+                // Only act if we are in edit mode for this card
+                if (!card || card.dataset.projectId !== editingProjectId) return;
+
+                if (e.target.matches('[data-field="status"]')) {
+                    const statusText = card.querySelector('.status-text-edit');
+                    if (statusText) {
+                        statusText.textContent = e.target.checked ? 'Completed' : 'In Progress';
+                    }
+                }
+            });
+
+            // --- INITIALIZATION ---
+            async function init() {
+                projects = await fetchProjects();
+                // Sort projects by start date, most recent first
+                projects.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+                renderProjects();
+            }
+
+            init();
         });
     </script>
 </body>
 </html>
-
-
-
-
-
 

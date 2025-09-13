@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JWT Authentication Test - Plotify Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c6b4b;
+            --secondary-color: #f4f7f6;
+            --text-color: #333;
+            --light-gray: #dde1e6;
+            --white: #fff;
+            --cta-blue: #4285F4;
+            --border-radius: 10px;
+            --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .test-container {
+            background: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 3rem;
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+
+        .test-header {
+            margin-bottom: 2rem;
+        }
+
+        .test-header h1 {
+            color: var(--primary-color);
+            margin: 0 0 0.5rem 0;
+            font-size: 2rem;
+        }
+
+        .test-header p {
+            color: #666;
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .auth-section {
+            background: var(--secondary-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+
+        .auth-section h3 {
+            margin: 0 0 1rem 0;
+            color: var(--primary-color);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--light-gray);
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .test-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .test-btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .test-btn.primary {
+            background-color: var(--cta-blue);
+            color: var(--white);
+            box-shadow: 0 4px 12px rgba(66, 133, 244, 0.25);
+        }
+
+        .test-btn.primary:hover {
+            background-color: #3367D6;
+            transform: translateY(-2px);
+        }
+
+        .test-btn.secondary {
+            background-color: var(--white);
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+
+        .test-btn.secondary:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+
+        .test-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-section {
+            margin-top: 2rem;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: left;
+        }
+
+        .status-section.success {
+            background: #e8f5e9;
+            border-left: 4px solid #2e7d32;
+            color: #2e7d32;
+        }
+
+        .status-section.error {
+            background: #ffebee;
+            border-left: 4px solid #c62828;
+            color: #c62828;
+        }
+
+        .status-section.info {
+            background: #e3f2fd;
+            border-left: 4px solid var(--cta-blue);
+            color: var(--cta-blue);
+        }
+
+        .token-display {
+            background: #f5f5f5;
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+            margin-top: 1rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-header">
+            <h1>🔐 JWT Authentication Test</h1>
+            <p>Test JWT token generation and API authentication</p>
+        </div>
+
+        <div class="auth-section">
+            <h3>Authentication</h3>
+            <div class="form-group">
+                <label for="userId">User ID</label>
+                <input type="text" id="userId" value="68c492f0d0ea881f407bf5dc" placeholder="Enter user ID">
+            </div>
+        </div>
+
+        <div class="test-actions">
+            <button class="test-btn primary" id="login-btn">🔑 Login & Get JWT Token</button>
+            <button class="test-btn secondary" id="test-api-btn" disabled>📡 Test API with JWT</button>
+            <button class="test-btn secondary" id="test-dashboard-btn" disabled>🏠 Test Dashboard with JWT</button>
+        </div>
+
+        <div id="status-section" class="status-section hidden">
+            <h4 id="status-title"></h4>
+            <p id="status-message"></p>
+            <div id="token-display" class="token-display hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const userIdInput = document.getElementById('userId');
+            const loginBtn = document.getElementById('login-btn');
+            const testApiBtn = document.getElementById('test-api-btn');
+            const testDashboardBtn = document.getElementById('test-dashboard-btn');
+            const statusSection = document.getElementById('status-section');
+            const statusTitle = document.getElementById('status-title');
+            const statusMessage = document.getElementById('status-message');
+            const tokenDisplay = document.getElementById('token-display');
+
+            let authToken = null;
+            let currentUserId = null;
+
+            function showStatus(type, title, message, token = null) {
+                statusSection.className = `status-section ${type}`;
+                statusTitle.textContent = title;
+                statusMessage.textContent = message;
+                statusSection.classList.remove('hidden');
+
+                if (token) {
+                    tokenDisplay.textContent = token;
+                    tokenDisplay.classList.remove('hidden');
+                } else {
+                    tokenDisplay.classList.add('hidden');
+                }
+            }
+
+            async function login() {
+                const userId = userIdInput.value.trim();
+                if (!userId) {
+                    showStatus('error', 'Error', 'Please enter a user ID');
+                    return;
+                }
+
+                loginBtn.disabled = true;
+                loginBtn.textContent = 'Logging in...';
+
+                try {
+                    const response = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ userId })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        authToken = data.token;
+                        currentUserId = data.userId;
+                        
+                        showStatus('success', 'Login Successful!', 
+                            `JWT token generated for user: ${data.userId}`, 
+                            data.token);
+                        
+                        testApiBtn.disabled = false;
+                        testDashboardBtn.disabled = false;
+                    } else {
+                        const error = await response.json();
+                        showStatus('error', 'Login Failed', error.message || 'Unknown error');
+                    }
+                } catch (error) {
+                    showStatus('error', 'Login Error', error.message);
+                } finally {
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = '🔑 Login & Get JWT Token';
+                }
+            }
+
+            async function testApi() {
+                if (!authToken) {
+                    showStatus('error', 'Error', 'Please login first');
+                    return;
+                }
+
+                testApiBtn.disabled = true;
+                testApiBtn.textContent = 'Testing...';
+
+                try {
+                    const response = await fetch('/api/users/projects', {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        showStatus('success', 'API Test Successful!', 
+                            `Fetched ${data.length} projects from API`);
+                    } else {
+                        const error = await response.json();
+                        showStatus('error', 'API Test Failed', error.message || `HTTP ${response.status}`);
+                    }
+                } catch (error) {
+                    showStatus('error', 'API Test Error', error.message);
+                } finally {
+                    testApiBtn.disabled = false;
+                    testApiBtn.textContent = '📡 Test API with JWT';
+                }
+            }
+
+            async function testDashboard() {
+                if (!authToken) {
+                    showStatus('error', 'Error', 'Please login first');
+                    return;
+                }
+
+                testDashboardBtn.disabled = true;
+                testDashboardBtn.textContent = 'Testing...';
+
+                try {
+                    const response = await fetch('/users/projects', {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        showStatus('success', 'Dashboard Test Successful!', 
+                            'Dashboard loaded with JWT authentication');
+                        
+                        // Redirect to dashboard after successful test
+                        setTimeout(() => {
+                            window.location.href = '/users/projects';
+                        }, 2000);
+                    } else {
+                        const error = await response.json();
+                        showStatus('error', 'Dashboard Test Failed', error.message || `HTTP ${response.status}`);
+                    }
+                } catch (error) {
+                    showStatus('error', 'Dashboard Test Error', error.message);
+                } finally {
+                    testDashboardBtn.disabled = false;
+                    testDashboardBtn.textContent = '🏠 Test Dashboard with JWT';
+                }
+            }
+
+            // Event listeners
+            loginBtn.addEventListener('click', login);
+            testApiBtn.addEventListener('click', testApi);
+            testDashboardBtn.addEventListener('click', testDashboard);
+
+            // Allow Enter key to trigger login
+            userIdInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    login();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
