@@ -14,6 +14,15 @@ const geminiModel = process.env.GEMINI_MODEL;
 const jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
 const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '24h';
 
+// --- JSONBin Configuration ---
+const JSONBIN_CONFIG = {
+  BASE_URL: 'https://api.jsonbin.io/v3',
+  VERSION: 'v3',
+  getUrl: function(endpoint) {
+    return `${this.BASE_URL}${endpoint}`;
+  }
+};
+
 if (!geminiApiKey || !geminiModel) {
   console.error("Error: API keys for GEMINI_API_KEY, and a GEMINI_MODEL must be set in the .env file.");
   process.exit(1);
@@ -117,7 +126,7 @@ app.post('/users/projects', async (req, res) => {
       };
       
       // Create new project in JSONBin
-      const jsonbinResponse = await fetch('https://api.jsonbin.io/v3/b', {
+      const jsonbinResponse = await fetch(JSONBIN_CONFIG.getUrl('/b'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -147,7 +156,7 @@ app.post('/users/projects', async (req, res) => {
       };
       
       // Update the JSONBin with the complete project data including project_id
-      const updateResponse = await fetch(`https://api.jsonbin.io/v3/b/${projectId}`, {
+      const updateResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${projectId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -164,7 +173,7 @@ app.post('/users/projects', async (req, res) => {
       
       // Add project ID to user's owned projects list
       try {
-        const userBinResponse = await fetch(`https://api.jsonbin.io/v3/b/${userId}`, {
+        const userBinResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${userId}`), {
           method: 'GET',
           headers: {
             'X-Master-Key': process.env.JSONBIN_API_KEY
@@ -179,7 +188,7 @@ app.post('/users/projects', async (req, res) => {
           ownedProjects.push(projectId);
           
           // Update user's owned projects list
-          const updateUserResponse = await fetch(`https://api.jsonbin.io/v3/b/${userId}`, {
+          const updateUserResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${userId}`), {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -251,7 +260,7 @@ app.delete('/users/projects/:id', async (req, res) => {
     
     try {
       // Delete the project from JSONBin
-      const deleteResponse = await fetch(`https://api.jsonbin.io/v3/b/${projectId}`, {
+      const deleteResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${projectId}`), {
         method: 'DELETE',
         headers: {
           'X-Master-Key': process.env.JSONBIN_API_KEY
@@ -269,7 +278,7 @@ app.delete('/users/projects/:id', async (req, res) => {
       }
 
       // Remove project from user's owned projects list
-      const userResponse = await fetch(`https://api.jsonbin.io/v3/b/${userId}`, {
+      const userResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${userId}`), {
         method: 'GET',
         headers: {
           'X-Master-Key': process.env.JSONBIN_API_KEY
@@ -289,7 +298,7 @@ app.delete('/users/projects/:id', async (req, res) => {
       const updatedOwnedProjects = ownedProjects.filter(id => id !== projectId);
 
       // Update user's owned projects list
-      const updateUserResponse = await fetch(`https://api.jsonbin.io/v3/b/${userId}`, {
+      const updateUserResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${userId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -363,7 +372,7 @@ app.put('/users/projects/:id', async (req, res) => {
     
     // Update project in JSONBin using project_id as bin ID
     try {
-      const jsonbinResponse = await fetch(`https://api.jsonbin.io/v3/b/${projectId}`, {
+      const jsonbinResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${projectId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -446,6 +455,72 @@ app.get('/users/projects', (req, res) => {
   res.sendFile('project-dashboard.html', { root: 'public' });
 });
 
+// --- Single Project API Endpoint ---
+app.get('/api/users/projects/:id', async (req, res) => {
+  const projectId = req.params.id;
+  
+  console.log(`Fetching project data for ID: ${projectId}`);
+  
+  // Extract and verify JWT token
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ 
+      error: 'No token provided',
+      message: 'Please provide Authorization: Bearer token'
+    });
+  }
+  
+  const token = authHeader.substring(7);
+  try {
+    const decoded = verifyToken(token);
+    const userId = decoded.userId;
+    
+    console.log(`Authenticated user: ${userId} fetching project: ${projectId}`);
+    
+    try {
+      // Fetch project data from JSONBin using project_id as bin ID
+      const projectResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${projectId}/latest`), {
+        method: 'GET',
+        headers: {
+          'X-Master-Key': process.env.JSONBIN_API_KEY,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!projectResponse.ok) {
+        const errorData = await projectResponse.json();
+        console.error('JSONBin fetch failed:', errorData);
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Project not found',
+          details: errorData
+        });
+      }
+
+      const projectData = await projectResponse.json();
+      console.log(`Successfully fetched project: ${projectId}`);
+      
+      res.json(projectData.record);
+
+    } catch (error) {
+      console.error('Error fetching project:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Internal server error while fetching project',
+        details: error.message
+      });
+    }
+
+  } catch (error) {
+    console.error('JWT verification failed:', error);
+    res.status(401).json({ 
+      success: false,
+      error: 'Invalid token',
+      message: 'Please provide a valid JWT token'
+    });
+  }
+});
+
 // --- Projects Data API Endpoint ---
 app.get('/api/users/projects', async (req, res) => {
   try {
@@ -492,7 +567,7 @@ app.get('/api/users/projects', async (req, res) => {
     
     // Use user ID as bin ID
     const binId = userId;
-    const jsonbinUrl = `https://api.jsonbin.io/v3/b/${binId}/latest`;
+    const jsonbinUrl = JSONBIN_CONFIG.getUrl(`/b/${binId}/latest`);
     
     console.log(`Fetching data from JSONBin.io: ${jsonbinUrl}`);
     
@@ -521,7 +596,7 @@ app.get('/api/users/projects', async (req, res) => {
       try {
         console.log(`Fetching project details for ID: ${projectId}`);
         
-        const projectResponse = await fetch(`https://api.jsonbin.io/v3/b/${projectId}/latest`, {
+        const projectResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${projectId}/latest`), {
           method: 'GET',
           headers: {
             'X-Master-Key': jsonbinApiKey,

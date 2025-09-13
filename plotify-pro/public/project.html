@@ -56,7 +56,7 @@
             gap: 0.75rem;
         }
         .logo-icon {
-            font-size: 1.8rem;
+            font-size: 1.6rem;
         }
         .logo-text {
             font-size: 1.6rem;
@@ -65,8 +65,8 @@
         }
         .project-name {
             font-weight: 500;
-            color: #666;
-            font-size: 1.4rem;
+            color: #555;
+            font-size: 1.2rem;
             padding-left: 0.75rem;
             margin-left: 0.25rem;
             border-left: 2px solid var(--light-gray);
@@ -656,6 +656,7 @@
             <div class="logo-container">
                 <span class="logo-icon">🪴</span>
                 <span class="logo-text">Plotify Pro</span>
+                <a href="/users/projects" class="project-name">Dashboard</a>
                 <span class="project-name" id="project-name-display"></span>
             </div>
             <input type="hidden" id="project-id" value="">
@@ -663,6 +664,7 @@
                 <button class="project-btn download-btn" id="download-project-btn">Download Project</button>
                 <button class="project-btn save-btn" id="save-project-btn">Save Project</button>
                 <button class="project-btn share-btn" id="share-project-btn">Share Project</button>
+                <button class="project-btn logout-btn" id="logout-btn">Logout</button>
             </div>
             <div class="progress-bar-container">
                 <div class="progress-bar"></div>
@@ -734,6 +736,36 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Logout functionality
+            document.getElementById('logout-btn').addEventListener('click', () => {
+                localStorage.removeItem('jwt_token');
+                localStorage.removeItem('user_id');
+                window.location.href = '/users/projects';
+            });
+            
+            // Set up periodic token validation (every 5 minutes)
+            setInterval(() => {
+                const token = localStorage.getItem('jwt_token');
+                if (token) {
+                    try {
+                        const payload = JSON.parse(atob(token.split('.')[1]));
+                        const currentTime = Math.floor(Date.now() / 1000);
+                        
+                        if (payload.exp && payload.exp < currentTime) {
+                            console.log('Token has expired, clearing localStorage');
+                            localStorage.removeItem('jwt_token');
+                            localStorage.removeItem('user_id');
+                            alert('Session expired. Please login again.');
+                            window.location.href = '/users/projects';
+                        }
+                    } catch (error) {
+                        console.error('Error validating token:', error);
+                        localStorage.removeItem('jwt_token');
+                        localStorage.removeItem('user_id');
+                    }
+                }
+            }, 5 * 60 * 1000); // 5 minutes
+            
             // DOM Elements
             const chatInput = document.getElementById('chat-input');
             const chatSubmit = document.getElementById('chat-submit');
@@ -766,32 +798,230 @@
                 zones: [], // { id: zoneId, name: 'Zone Name' }
                 nextZoneId: 1,
             };
+            let projectMetadata = {
+                project_name: '',
+                project_id: '',
+                user_id: '',
+                status: 'in-progress',
+                description: '',
+                client: '',
+                startDate: '',
+                completedDate: null
+            };
             let selectedPlantId = null;
             let zoneToDeleteId = null;
 
             // --- INITIALIZATION ---
-            function init() {
-                loadProject();
-                loadProjectDetails();
+            async function init() {
+                // Extract project ID from URL path /users/projects/:id
+                const pathParts = window.location.pathname.split('/');
+                const projectId = pathParts[pathParts.length - 1];
+                
+                console.log('URL path:', window.location.pathname);
+                console.log('Extracted project ID:', projectId);
+
+                await loadProjectDataFromBackend(projectId); 
+
                 const defaultQuery = "what are some popular plants for shady areas?";
                 chatInput.value = defaultQuery;
-                aiSearch(defaultQuery); // Initial load with default question
+                aiSearch(defaultQuery); 
                 renderRightPane();
                 renderProject(projectZoneLeft);
                 setupDragAndDrop(projectZoneLeft);
                 setupDragAndDrop(modalPlotContainer);
             }
             
-            function loadProjectDetails() {
-                // In a real app, this would come from a backend call
-                const backendData = {
-                    projectName: "My First Garden",
-                    projectId: "proj_12345xyz"
-                };
+            async function loadProjectDataFromBackend(projectId) {
+                if (!projectId) {
+                    projectNameDisplay.textContent = "No Project Loaded";
+                    projectIdInput.value = '';
+                    return;
+                }
+                
+                projectIdInput.value = projectId;
+                progressBarContainer.style.visibility = 'visible';
 
-                projectNameDisplay.textContent = backendData.projectName;
-                projectIdInput.value = backendData.projectId;
+                try {
+                    const token = localStorage.getItem('jwt_token');
+                    if (!token) {
+                        alert('Please login first');
+                        window.location.href = '/users/projects';
+                        return;
+                    }
+                    
+                    // Check if token is expired
+                    try {
+                        const payload = JSON.parse(atob(token.split('.')[1]));
+                        const currentTime = Math.floor(Date.now() / 1000);
+                        
+                        if (payload.exp && payload.exp < currentTime) {
+                            console.log('Token has expired, clearing localStorage');
+                            localStorage.removeItem('jwt_token');
+                            localStorage.removeItem('user_id');
+                            alert('Session expired. Please login again.');
+                            window.location.href = '/users/projects';
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('Error validating token:', error);
+                        localStorage.removeItem('jwt_token');
+                        localStorage.removeItem('user_id');
+                        alert('Invalid token. Please login again.');
+                        window.location.href = '/users/projects';
+                        return;
+                    }
+
+                    let backendData;
+                    if (useMockApi) {
+                         // Mock backend response:
+                        backendData = {
+                            "project_name": "Front Yard Redesign (Mock)",
+                            "project_id": "proj_def456",
+                            "projectData": {
+                                "plants": {
+                                    "e98c412e-6621-44c1-8221-dab9b482299e": { "plant_id": "e98c412e-6621-44c1-8221-dab9b482299e", "common_name": "Anigozanthos 'Bush Tango'", "zoneId": 1 },
+                                    "9ef91e42-a19c-4f26-95d1-a77c597d589f": { "plant_id": "9ef91e42-a19c-4f26-95d1-a77c597d589f", "common_name": "Salvia chionophylla", "zoneId": 2 },
+                                    "c83d66fd-d590-4272-969a-6e9d0fd41840": { "plant_id": "c83d66fd-d590-4272-969a-6e9d0fd41840", "common_name": "Ceanothus gloriosus 'Anchor Bay'", "zoneId": 2 }
+                                },
+                                "zones": [
+                                    { "id": 1, "name": "Entryway Planters" },
+                                    { "id": 2, "name": "Drought-Tolerant Border" }
+                                ],
+                                "nextZoneId": 3
+                            }
+                        };
+                    } else {
+                        const response = await fetch(`/api/users/projects/${projectId}`, {
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        if (!response.ok) {
+                            if (response.status === 401) {
+                                alert('Session expired. Please login again.');
+                                localStorage.removeItem('jwt_token');
+                                localStorage.removeItem('user_id');
+                                window.location.href = '/users/projects';
+                                return;
+                            }
+                            throw new Error(`Failed to load project: ${response.status}`);
+                        }
+                        
+                        backendData = await response.json();
+                        console.log('Project data loaded from backend:', backendData);
+                    }
+                    
+                    projectNameDisplay.textContent = backendData.project_name || 'Unnamed Project';
+                    projectIdInput.value = backendData.project_id || projectId;
+
+                    // Update project metadata
+                    projectMetadata = {
+                        project_name: backendData.project_name || 'Unnamed Project',
+                        project_id: backendData.project_id || projectId,
+                        user_id: backendData.user_id || localStorage.getItem('user_id'),
+                        status: backendData.status || 'in-progress',
+                        description: backendData.description || 'Garden project created with Plotify Pro',
+                        client: backendData.client || 'Self',
+                        startDate: backendData.startDate || new Date().toISOString().split('T')[0],
+                        completedDate: backendData.completedDate || null
+                    };
+
+                    if (backendData.projectData && backendData.projectData.plants && backendData.projectData.zones) {
+                        const dataToLoad = backendData.projectData;
+                        const cleanedPlants = {};
+                        Object.keys(dataToLoad.plants).forEach(plantId => {
+                            const plant = dataToLoad.plants[plantId];
+                            if (plant && plant.plant_id && plant.common_name) {
+                                cleanedPlants[plantId] = plant;
+                                if (!plantDataCache[plantId]) {
+                                    plantDataCache[plantId] = plant;
+                                }
+                            }
+                        });
+                        dataToLoad.plants = cleanedPlants;
+                        projectData = dataToLoad;
+                    }
+
+                } catch (error) {
+                    console.error("Failed to load project data from backend:", error);
+                    projectNameDisplay.textContent = "Error Loading Project";
+                } finally {
+                    progressBarContainer.style.visibility = 'hidden';
+                }
             }
+            
+            async function saveProjectToBackend() {
+                const projectId = projectIdInput.value;
+                if (!projectId) {
+                    alert("No project is loaded to save.");
+                    return;
+                }
+
+                const token = localStorage.getItem('jwt_token');
+                if (!token) {
+                    alert('Please login first');
+                    window.location.href = '/users/projects';
+                    return;
+                }
+
+                progressBarContainer.style.visibility = 'visible';
+                const saveBtn = document.getElementById('save-project-btn');
+                const originalText = saveBtn.textContent;
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Saving...';
+
+                try {
+                    if (useMockApi) {
+                        // Mocking successful save
+                        await new Promise(resolve => setTimeout(resolve, 500)); 
+                        showCopiedMessage("Project Saved (Mock)");
+                    } else {
+                        // Real API call
+                        const response = await fetch(`/users/projects/${projectId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                ...projectMetadata,
+                                project_name: projectNameDisplay.textContent || projectMetadata.project_name,
+                                project_id: projectId,
+                                projectData: projectData
+                            })
+                        });
+
+                        if (!response.ok) {
+                            if (response.status === 401) {
+                                alert('Session expired. Please login again.');
+                                localStorage.removeItem('jwt_token');
+                                localStorage.removeItem('user_id');
+                                window.location.href = '/users/projects';
+                                return;
+                            }
+                            
+                            const errorData = await response.json().catch(() => ({}));
+                            console.error('Save failed:', errorData);
+                            throw new Error(`Failed to save project: ${response.status} - ${errorData.message || 'Unknown error'}`);
+                        }
+                        
+                        const result = await response.json();
+                        console.log('Project saved successfully:', result);
+                        showCopiedMessage("Project Saved Successfully");
+                    }
+
+                } catch (error) {
+                    console.error("Failed to save project:", error);
+                    alert("Error saving project. Please try again.");
+                } finally {
+                     progressBarContainer.style.visibility = 'hidden';
+                     saveBtn.disabled = false;
+                     saveBtn.textContent = originalText;
+                }
+            }
+
 
             // --- RENDERING LOGIC ---
             function renderRightPane() {
@@ -1175,55 +1405,7 @@
                     navigator.clipboard.writeText(url).then(() => showCopiedMessage("Share URL copied to clipboard!"));
                 } catch (e) { console.error("Failed to generate share URL", e); alert("Could not generate share URL."); }
             }
-
-            function saveProjectToLocal() {
-                try {
-                    const dataStr = JSON.stringify(projectData);
-                    localStorage.setItem('plotifyProject', dataStr);
-                    showCopiedMessage("Project Saved");
-                } catch (e) {
-                    console.error("Failed to save project to local storage", e);
-                    alert("Could not save project.");
-                }
-            }
             
-            function loadProject() {
-                const params = new URLSearchParams(window.location.search);
-                const urlData = params.get('project');
-                const localData = localStorage.getItem('plotifyProject');
-
-                let dataToLoad = null;
-
-                if (urlData) {
-                    try {
-                        const decoded = atob(urlData);
-                        dataToLoad = JSON.parse(decoded);
-                    } catch(e) { console.error("Failed to parse project data from URL", e); }
-                } else if (localData) {
-                     try {
-                        dataToLoad = JSON.parse(localData);
-                    } catch(e) { console.error("Failed to parse project data from Local Storage", e); }
-                }
-
-                if (dataToLoad && dataToLoad.plants && dataToLoad.zones) {
-                    const cleanedPlants = {};
-                    Object.keys(dataToLoad.plants).forEach(plantId => {
-                        const plant = dataToLoad.plants[plantId];
-                        if (plant && plant.plant_id && plant.common_name) {
-                            cleanedPlants[plantId] = plant;
-                        }
-                    });
-                    dataToLoad.plants = cleanedPlants;
-
-                    projectData = dataToLoad;
-                    Object.values(projectData.plants).forEach(plant => {
-                        if (plant && plant.plant_id) {
-                            plantDataCache[plant.plant_id] = plant;
-                        }
-                    });
-                }
-            }
-
             function showCopiedMessage(message) {
                 const existingMsg = document.querySelector('.copied-message');
                 if(existingMsg) existingMsg.remove();
@@ -1286,7 +1468,7 @@
                 const closestAction = e.target.closest('[data-action]');
                 
                 if(targetId === 'share-project-btn') generateShareUrl();
-                if(targetId === 'save-project-btn') saveProjectToLocal();
+                if(targetId === 'save-project-btn') saveProjectToBackend();
                 if(targetId === 'download-project-btn') downloadProjectAsCSV();
 
                 if (targetId === 'back-to-project-btn') {

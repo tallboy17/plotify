@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Plotify - My Projects</title>
+    <title>Plotify - Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -54,7 +54,15 @@
             gap: 1rem;
         }
 
-        header .logo {
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .logo-icon {
+            font-size: 1.6rem;
+        }
+        .logo-text {
             font-size: 1.6rem;
             font-weight: 700;
             color: var(--primary-color);
@@ -478,9 +486,12 @@
 
     <header>
         <div class="header-left">
-            <div class="logo">Plotify Pro 🪴</div>
+            <div class="logo-container">
+                <span class="logo-icon">🪴</span>
+                <span class="logo-text">Plotify Pro</span>
+            </div>
             <div class="header-divider"></div>
-            <div class="header-title">My Projects</div>
+            <div class="header-title">Dashboard</div>
         </div>
         <button class="btn btn-cta" id="new-project-btn">+ New Project</button>
         <div class="progress-bar-container">
@@ -558,6 +569,19 @@
                 token: null,
                 isAuthenticated: false,
                 
+                // Initialize from localStorage
+                init() {
+                    const storedToken = localStorage.getItem('jwt_token');
+                    const storedUserId = localStorage.getItem('user_id');
+                    
+                    if (storedToken && storedUserId) {
+                        this.token = storedToken;
+                        this.userId = storedUserId;
+                        this.isAuthenticated = true;
+                        console.log('Auth initialized from localStorage');
+                    }
+                },
+                
                 // Login function
                 async login() {
                     try {
@@ -572,7 +596,12 @@
                             const data = await response.json();
                             this.token = data.token;
                             this.isAuthenticated = true;
-                            console.log('Login successful, token received');
+                            
+                            // Store token in localStorage for other pages
+                            localStorage.setItem('jwt_token', data.token);
+                            localStorage.setItem('user_id', this.userId);
+                            
+                            console.log('Login successful, token received and stored');
                             return true;
                         } else {
                             console.error('Login failed:', await response.json());
@@ -595,10 +624,35 @@
                     };
                 },
                 
-                // Check if token is valid
+                // Check if token is valid and not expired
                 isTokenValid: function() {
                     if (!this.token) return false;
-                    return this.isAuthenticated && this.token.length > 0;
+                    
+                    try {
+                        // Decode JWT token to check expiry
+                        const payload = JSON.parse(atob(this.token.split('.')[1]));
+                        const currentTime = Math.floor(Date.now() / 1000);
+                        
+                        if (payload.exp && payload.exp < currentTime) {
+                            console.log('Token has expired, clearing localStorage');
+                            this.clearStoredAuth();
+                            return false;
+                        }
+                        
+                        return this.isAuthenticated && this.token.length > 0;
+                    } catch (error) {
+                        console.error('Error validating token:', error);
+                        this.clearStoredAuth();
+                        return false;
+                    }
+                },
+                
+                // Clear stored authentication data
+                clearStoredAuth: function() {
+                    localStorage.removeItem('jwt_token');
+                    localStorage.removeItem('user_id');
+                    this.token = null;
+                    this.isAuthenticated = false;
                 }
             };
 
@@ -1014,6 +1068,16 @@
 
             // --- INITIALIZATION ---
             async function init() {
+                // Initialize auth from localStorage
+                authObject.init();
+                
+                // Set up periodic token validation (every 5 minutes)
+                setInterval(() => {
+                    if (authObject.token) {
+                        authObject.isTokenValid(); // This will clear expired tokens
+                    }
+                }, 5 * 60 * 1000); // 5 minutes
+                
                 projects = await fetchProjects();
                 // Sort projects by start date, most recent first
                 projects.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
