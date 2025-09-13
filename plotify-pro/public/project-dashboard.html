@@ -79,6 +79,11 @@
             color: #555;
         }
 
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
         /* Progress Bar */
         .progress-bar-container {
             position: absolute;
@@ -493,7 +498,10 @@
             <div class="header-divider"></div>
             <div class="header-title">Dashboard</div>
         </div>
-        <button class="btn btn-cta" id="new-project-btn">+ New Project</button>
+        <div class="header-actions">
+            <button class="btn btn-cta" id="new-project-btn">+ New Project</button>
+            <button class="btn btn-secondary" id="logout-btn">Logout</button>
+        </div>
         <div class="progress-bar-container">
             <div class="progress-bar"></div>
         </div>
@@ -565,7 +573,7 @@
 
             // --- AUTH OBJECT ---
             const authObject = {
-                userId: '68c492f0d0ea881f407bf5dc',
+                userId: null,
                 token: null,
                 isAuthenticated: false,
                 
@@ -578,39 +586,18 @@
                         this.token = storedToken;
                         this.userId = storedUserId;
                         this.isAuthenticated = true;
-                        console.log('Auth initialized from localStorage');
+                        console.log('Auth initialized from localStorage:', { userId: this.userId, hasToken: !!this.token });
+                    } else {
+                        console.warn('No authentication data found in localStorage');
+                        this.clearStoredAuth();
                     }
                 },
                 
-                // Login function
+                // Login function - redirects to main page for Google OAuth
                 async login() {
-                    try {
-                        console.log(`Logging in user: ${this.userId}`);
-                        const response = await fetch('/api/auth/login', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ userId: this.userId })
-                        });
-                        
-                        if (response.ok) {
-                            const data = await response.json();
-                            this.token = data.token;
-                            this.isAuthenticated = true;
-                            
-                            // Store token in localStorage for other pages
-                            localStorage.setItem('jwt_token', data.token);
-                            localStorage.setItem('user_id', this.userId);
-                            
-                            console.log('Login successful, token received and stored');
-                            return true;
-                        } else {
-                            console.error('Login failed:', await response.json());
-                            return false;
-                        }
-                    } catch (error) {
-                        console.error('Login error:', error);
-                        return false;
-                    }
+                    console.log('No valid authentication found, redirecting to login page');
+                    window.location.href = '/index.html';
+                    return false;
                 },
                 
                 // Get auth headers
@@ -668,8 +655,9 @@
                     
                     // Ensure user is authenticated
                     if (!authObject.isTokenValid()) {
-                        const loginSuccess = await authObject.login();
-                        if (!loginSuccess) throw new Error('Authentication failed');
+                        console.log('Token invalid or expired, redirecting to login');
+                        window.location.href = '/index.html';
+                        return [];
                     }
                     
                     console.log(`Fetching projects for user: ${authObject.userId}`);
@@ -677,11 +665,9 @@
 
                     if (!response.ok) {
                         if (response.status === 401) {
-                            const loginSuccess = await authObject.login();
-                            if (loginSuccess) {
-                                const retryResponse = await fetch(API_ENDPOINT, { headers: authObject.getAuthHeaders() });
-                                if (retryResponse.ok) return await retryResponse.json();
-                            }
+                            console.log('Unauthorized access, redirecting to login');
+                            window.location.href = '/index.html';
+                            return [];
                         }
                         throw new Error(`API request failed with status ${response.status}`);
                     }
@@ -715,8 +701,9 @@
                     }
 
                     if (!authObject.isTokenValid()) {
-                        const loginSuccess = await authObject.login();
-                        if (!loginSuccess) throw new Error('Authentication failed');
+                        console.log('Token invalid or expired, redirecting to login');
+                        window.location.href = '/index.html';
+                        return null;
                     }
 
                     const payload = { ...projectToCreate };
@@ -765,8 +752,9 @@
                     }
 
                     if (!authObject.isTokenValid()) {
-                        const loginSuccess = await authObject.login();
-                        if (!loginSuccess) throw new Error('Authentication failed');
+                        console.log('Token invalid or expired, redirecting to login');
+                        window.location.href = '/index.html';
+                        return false;
                     }
                     
                     const response = await fetch(`/users/projects/${projectToSave.project_id}`, {
@@ -804,8 +792,9 @@
                     }
 
                     if (!authObject.isTokenValid()) {
-                        const loginSuccess = await authObject.login();
-                        if (!loginSuccess) throw new Error('Authentication failed');
+                        console.log('Token invalid or expired, redirecting to login');
+                        window.location.href = '/index.html';
+                        return false;
                     }
 
                     const response = await fetch(`/users/projects/${projectId}`, {
@@ -1077,6 +1066,12 @@
                         authObject.isTokenValid(); // This will clear expired tokens
                     }
                 }, 5 * 60 * 1000); // 5 minutes
+                
+                // Add logout button event listener
+                document.getElementById('logout-btn').addEventListener('click', () => {
+                    authObject.clearStoredAuth();
+                    window.location.href = '/index.html';
+                });
                 
                 projects = await fetchProjects();
                 // Sort projects by start date, most recent first

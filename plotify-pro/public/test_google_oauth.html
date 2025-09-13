@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google OAuth Test - Plotify Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c6b4b;
+            --secondary-color: #f4f7f6;
+            --text-color: #333;
+            --light-gray: #dde1e6;
+            --white: #fff;
+            --success-color: #2e7d32;
+            --error-color: #c62828;
+            --border-radius: 10px;
+            --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .test-section {
+            background: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .test-section h2 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        .test-actions {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .test-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .test-btn.primary {
+            background-color: var(--primary-color);
+            color: var(--white);
+        }
+
+        .test-btn.primary:hover {
+            background-color: #1e4d2e;
+            transform: translateY(-2px);
+        }
+
+        .test-btn.secondary {
+            background-color: var(--white);
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+
+        .test-btn.secondary:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .test-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-section {
+            margin-top: 2rem;
+            padding: 1rem;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status-section.success {
+            background-color: #e8f5e9;
+            border: 1px solid var(--success-color);
+            color: var(--success-color);
+        }
+
+        .status-section.error {
+            background-color: #fff0f0;
+            border: 1px solid var(--error-color);
+            color: var(--error-color);
+        }
+
+        .status-section.info {
+            background-color: #e3f2fd;
+            border: 1px solid #1565c0;
+            color: #1565c0;
+        }
+
+        .status-section.show {
+            display: block;
+        }
+
+        .user-info {
+            background: var(--secondary-color);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .user-info h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        .user-info img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 1rem;
+            vertical-align: middle;
+        }
+
+        .code-block {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .instructions {
+            background: #f8f9fa;
+            border-left: 4px solid var(--primary-color);
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .instructions h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Google OAuth Test</h1>
+            <p>Test the Google OAuth integration with Plotify Pro</p>
+        </div>
+
+        <div class="test-section">
+            <h2>Google Sign-In Test</h2>
+            <p>This will test the complete Google OAuth flow:</p>
+            <ol>
+                <li>Sign in with Google (opens popup)</li>
+                <li>Get Google ID token from the popup</li>
+                <li>Send ID token to our backend for verification</li>
+                <li>Backend checks centralized USERS_BIN for existing user</li>
+                <li>If new user, creates user record in centralized USERS_BIN</li>
+                <li>Backend generates JWT token and returns user info with subscription data</li>
+                <li>Frontend stores JWT token and user data for API calls</li>
+            </ol>
+
+            <div class="test-actions">
+                <button class="test-btn primary" id="google-signin-btn">🔑 Sign in with Google</button>
+                <button class="test-btn secondary" id="test-api-btn" disabled>📡 Test API with JWT</button>
+                <button class="test-btn secondary" id="test-dashboard-btn" disabled>🏠 Test Dashboard</button>
+            </div>
+
+            <div class="instructions">
+                <h3>Setup Instructions</h3>
+                <p>Before testing, make sure you have:</p>
+                <ul>
+                    <li>Set <code>GOOGLE_CLIENT_ID</code> in your <code>.env</code> file</li>
+                    <li>Set <code>JSONBIN_API_KEY</code> in your <code>.env</code> file</li>
+                    <li>Set <code>USERS_BIN</code> in your <code>.env</code> file (JSONBin.io bin ID for user storage)</li>
+                    <li>Installed <code>firebase-admin</code> package</li>
+                    <li>Added <code>serviceAccountKey.json</code> to your project root</li>
+                    <li>Configured Google OAuth in Google Cloud Console</li>
+                    <li>Created a JSONBin.io bin for user storage and initialized it with <code>{}</code></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Manual Token Test</h2>
+            <p>If you have a Google ID token, you can test it directly:</p>
+            <div class="code-block">
+                <strong>POST /api/auth/google</strong><br>
+                Content-Type: application/json<br><br>
+                {<br>
+                &nbsp;&nbsp;"id_token": "your_google_id_token_here"<br>
+                }
+            </div>
+            <button class="test-btn secondary" id="manual-test-btn">🧪 Test with Manual Token</button>
+        </div>
+
+        <div id="status-section" class="status-section">
+            <h3 id="status-title">Status</h3>
+            <p id="status-message">Ready to test</p>
+        </div>
+
+        <div id="user-info" class="user-info" style="display: none;">
+            <h3>User Information</h3>
+            <div id="user-details"></div>
+        </div>
+    </div>
+
+    <!-- Google Sign-In Script -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const googleSigninBtn = document.getElementById('google-signin-btn');
+            const testApiBtn = document.getElementById('test-api-btn');
+            const testDashboardBtn = document.getElementById('test-dashboard-btn');
+            const manualTestBtn = document.getElementById('manual-test-btn');
+            const statusSection = document.getElementById('status-section');
+            const statusTitle = document.getElementById('status-title');
+            const statusMessage = document.getElementById('status-message');
+            const userInfo = document.getElementById('user-info');
+            const userDetails = document.getElementById('user-details');
+
+            let authToken = null;
+            let userData = null;
+
+            // Initialize Google Sign-In
+            google.accounts.id.initialize({
+                client_id: 'YOUR_GOOGLE_CLIENT_ID', // Replace with actual client ID
+                callback: handleCredentialResponse
+            });
+
+            function handleCredentialResponse(response) {
+                console.log('Google Sign-In response:', response);
+                
+                if (response.credential) {
+                    // Send the ID token to our backend
+                    verifyGoogleToken(response.credential);
+                } else {
+                    showStatus('error', 'Sign-In Failed', 'No credential received from Google');
+                }
+            }
+
+            async function verifyGoogleToken(idToken) {
+                showStatus('info', 'Verifying Token', 'Sending Google ID token to backend...');
+                
+                try {
+                    const response = await fetch('/api/auth/google', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ id_token: idToken })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        authToken = data.data.jwt.token;
+                        userData = {
+                            name: data.data.jwt.username,
+                            email: data.data.jwt.email,
+                            userId: data.data.jwt.userId,
+                            internalId: data.data.user.internalId,
+                            subscription: data.data.user.subscription,
+                            createdAt: data.data.user.createdAt,
+                            lastLogin: data.data.user.lastLogin
+                        };
+                        
+                        showStatus('success', 'Authentication Successful!', 
+                            `Welcome ${userData.name}! JWT token received.`);
+                        
+                        displayUserInfo(userData);
+                        
+                        // Enable API test buttons
+                        testApiBtn.disabled = false;
+                        testDashboardBtn.disabled = false;
+                        
+                    } else {
+                        showStatus('error', 'Authentication Failed', 
+                            data.message || `HTTP ${response.status}`);
+                    }
+                } catch (error) {
+                    showStatus('error', 'Network Error', error.message);
+                }
+            }
+
+            function displayUserInfo(userInfo) {
+                userDetails.innerHTML = `
+                    <div style="margin-bottom: 1rem;">
+                        <div>
+                            <strong>${userInfo.name}</strong><br>
+                            <small>${userInfo.email}</small><br>
+                            <small>Google User ID: ${userInfo.userId}</small><br>
+                            <small>Internal ID: ${userInfo.internalId}</small>
+                        </div>
+                    </div>
+                    <div class="code-block">
+                        <strong>Subscription Info:</strong><br>
+                        Plan: ${userInfo.subscription.plan}<br>
+                        Status: ${userInfo.subscription.status}<br>
+                        Start Date: ${new Date(userInfo.subscription.startDate).toLocaleDateString()}
+                    </div>
+                    <div class="code-block">
+                        <strong>Account Info:</strong><br>
+                        Created: ${new Date(userInfo.createdAt).toLocaleDateString()}<br>
+                        Last Login: ${new Date(userInfo.lastLogin).toLocaleString()}
+                    </div>
+                    <div class="code-block">
+                        <strong>JWT Token:</strong><br>
+                        ${authToken ? authToken.substring(0, 50) + '...' : 'Not generated'}
+                    </div>
+                    <div class="code-block">
+                        <strong>Data for localStorage:</strong><br>
+                        {<br>
+                        &nbsp;&nbsp;"jwt_token": "${authToken}",<br>
+                        &nbsp;&nbsp;"user_id": "${userInfo.userId}",<br>
+                        &nbsp;&nbsp;"username": "${userInfo.name}",<br>
+                        &nbsp;&nbsp;"email": "${userInfo.email}",<br>
+                        &nbsp;&nbsp;"internal_id": "${userInfo.internalId}",<br>
+                        &nbsp;&nbsp;"subscription": ${JSON.stringify(userInfo.subscription)}<br>
+                        }
+                    </div>
+                `;
+                userInfo.style.display = 'block';
+            }
+
+            async function testApi() {
+                if (!authToken) {
+                    showStatus('error', 'Error', 'Please sign in first');
+                    return;
+                }
+
+                testApiBtn.disabled = true;
+                testApiBtn.textContent = 'Testing...';
+
+                try {
+                    const response = await fetch('/api/users/projects', {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        showStatus('success', 'API Test Successful!', 
+                            `Projects API responded with ${data.length} projects`);
+                    } else {
+                        const error = await response.json();
+                        showStatus('error', 'API Test Failed', error.message || `HTTP ${response.status}`);
+                    }
+                } catch (error) {
+                    showStatus('error', 'API Test Error', error.message);
+                } finally {
+                    testApiBtn.disabled = false;
+                    testApiBtn.textContent = '📡 Test API with JWT';
+                }
+            }
+
+            async function testDashboard() {
+                if (!authToken) {
+                    showStatus('error', 'Error', 'Please sign in first');
+                    return;
+                }
+
+                testDashboardBtn.disabled = true;
+                testDashboardBtn.textContent = 'Testing...';
+
+                try {
+                    const response = await fetch('/users/projects', {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        showStatus('success', 'Dashboard Test Successful!', 
+                            'Dashboard loaded with JWT authentication');
+                        
+                        // Redirect to dashboard after successful test
+                        setTimeout(() => {
+                            window.location.href = '/users/projects';
+                        }, 2000);
+                    } else {
+                        const error = await response.json();
+                        showStatus('error', 'Dashboard Test Failed', error.message || `HTTP ${response.status}`);
+                    }
+                } catch (error) {
+                    showStatus('error', 'Dashboard Test Error', error.message);
+                } finally {
+                    testDashboardBtn.disabled = false;
+                    testDashboardBtn.textContent = '🏠 Test Dashboard';
+                }
+            }
+
+            function showStatus(type, title, message) {
+                statusTitle.textContent = title;
+                statusMessage.textContent = message;
+                statusSection.className = `status-section ${type} show`;
+            }
+
+            // Event listeners
+            googleSigninBtn.addEventListener('click', () => {
+                google.accounts.id.prompt();
+            });
+
+            testApiBtn.addEventListener('click', testApi);
+            testDashboardBtn.addEventListener('click', testDashboard);
+
+            manualTestBtn.addEventListener('click', () => {
+                const token = prompt('Enter your Google ID token:');
+                if (token) {
+                    verifyGoogleToken(token);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

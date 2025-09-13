@@ -1,554 +1,426 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Plotify - Curate Your Perfect Garden</title>
+    <title>Plotify Pro - AI-Powered Landscape Design</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Add these Firebase scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-auth-compat.js"></script>
+
     <style>
+        :root {
+            --forest-green: #2c6b4b;
+            --sky-blue: #4285F4;
+            --muted-clay: #8B7D6B;
+            --sage-green: #A9B4A9;
+            --light-mint-gray: #f4f7f6;
+            --white: #FFFFFF;
+            --stone-gray: #dde1e6;
+            --medium-gray: #555555;
+            --charcoal: #333333;
+            --success-green: #2e7d32;
+            --info-blue: #1565c0;
+            --danger-red: #c62828;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f8fafc; /* Tailwind gray-50 */
+            background-color: var(--light-mint-gray);
+            color: var(--charcoal);
         }
-        /* Custom scrollbar for better aesthetics */
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+
+        .hero-slideshow {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
         }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f5f9; /* gray-100 */
+
+        .hero-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            transition: opacity 2.5s ease-in-out;
+            z-index: 1;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1; /* gray-300 */
-            border-radius: 10px;
+
+        .hero-slide.active {
+            opacity: 1;
+            z-index: 2;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8; /* gray-400 */
+
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
         }
-        /* Hide scrollbar visually but keep it scrollable */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
+
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
         }
-        .no-scrollbar {
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
+
+        .header-scrolled {
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        /* Basic animation for the loader */
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        .animate-pulse {
-            animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+        .pricing-card-popular {
+            border: 2px solid var(--sky-blue);
+            transform: scale(1.05);
         }
     </style>
 </head>
-<body class="text-gray-800">
 
-    <!-- Main Container -->
-    <div class="flex flex-col lg:flex-row h-screen">
+<body class="bg-gray-50">
 
-        <!-- Left Panel: Plant Selector -->
-        <main class="w-full lg:w-2/3 p-4 md:p-8 flex flex-col overflow-hidden">
-            <header class="mb-6 flex-shrink-0">
-                <h1 class="text-4xl font-bold text-green-700">Plotify</h1>
-                <p class="text-gray-500 mt-1">Select and curate plants for your perfect garden plot.</p>
-            </header>
-            <div class="flex-grow overflow-x-auto custom-scrollbar -mx-4 px-4">
-                <div id="plant-selector" class="flex space-x-6 pb-4">
-                    <!-- Plant cards will be injected here by JavaScript -->
-                </div>
-            </div>
-        </main>
-
-        <!-- Right Panel: Plot and Details -->
-        <aside class="w-full lg:w-1/3 bg-white border-l border-gray-200 flex flex-col">
-            <!-- Plot Section -->
-            <div id="plot-section" class="p-6 border-b border-gray-200">
-                <div class="flex items-center justify-between mb-4">
-                     <h2 class="text-2xl font-semibold flex items-center">
-                        <svg class="w-6 h-6 mr-2 text-green-600" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" stroke="currentColor"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13v-6m0-6V5m0 2v6m0 0h6m-6 0L3.553 7.276A1 1 0 013 6.382V5.618a1 1 0 011.447-.894L9 7m5.447 10.276L15 14m0 0V5.618a1 1 0 011.447-.894L21 7v10.764a1 1 0 01-1.447.894L15 16m-6-6h6"></path></svg>
-                        My Plot
-                    </h2>
-                    <span id="plot-count" class="bg-green-100 text-green-700 text-sm font-bold px-3 py-1 rounded-full">0 items</span>
-                </div>
-                 <div class="flex items-center space-x-2">
-                    <button id="share-button" class="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition duration-300 disabled:bg-gray-300 disabled:cursor-not-allowed" disabled>Share</button>
-                    <button id="generate-plan-button" class="flex-1 bg-purple-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-purple-600 transition duration-300 disabled:bg-gray-300 disabled:cursor-not-allowed" disabled>✨ Generate Plan</button>
-                </div>
-                <div id="plot-items" class="mt-4 space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
-                    <!-- Plot items will be injected here -->
-                    <p class="text-gray-400">Your plot is empty. Add plants from the list.</p>
-                </div>
-            </div>
-
-            <!-- Scrollable Content Area -->
-            <div class="flex-grow overflow-y-auto custom-scrollbar">
-                <!-- Plant Details Section -->
-                <div id="details-section" class="p-6">
-                    <div id="details-placeholder" class="text-center text-gray-400 h-full flex flex-col justify-center items-center">
-                        <svg class="w-16 h-16 mb-4" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 4v16m8-8H4"></path><path d="M17.657 17.657L12 12m0 0L6.343 6.343M12 12l5.657-5.657M12 12l-5.657 5.657"></path></svg>
-                        <h3 class="font-semibold text-lg">View Plant Details</h3>
-                        <p>Click "View Details" on any plant to see its full profile here.</p>
-                    </div>
-                    <div id="details-content" class="hidden">
-                        <!-- Detailed content will be injected here -->
-                    </div>
-                </div>
-
-                <!-- Gemini Plan Section -->
-                <div id="gemini-plan-section" class="p-6 border-t border-gray-200 hidden">
-                    <h2 class="text-2xl font-semibold flex items-center mb-4 text-purple-700">
-                        ✨ AI Garden Plan
-                    </h2>
-                    <div id="gemini-plan-content">
-                        <!-- AI content will be injected here -->
-                    </div>
-                </div>
-            </div>
-        </aside>
-
-    </div>
-    
-    <!-- Share Modal -->
-    <div id="share-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div class="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full m-4">
-            <h2 class="text-2xl font-bold mb-4">Share Your Plot</h2>
-            <p class="text-gray-600 mb-6">Here is the shareable link to your curated plant plot:</p>
-            <div class="flex items-center bg-gray-100 border rounded-lg p-2">
-                <input id="share-url" type="text" class="bg-transparent w-full text-gray-700 outline-none" readonly>
-                <button id="copy-button" class="ml-2 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition">Copy</button>
-            </div>
-            <p id="copy-feedback" class="text-sm text-green-600 mt-2 h-5"></p>
-            <button id="close-modal-button" class="mt-6 w-full bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition">Close</button>
+    <!-- Header -->
+    <header id="header" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+        <div class="container mx-auto px-6 py-3 flex justify-between items-center">
+            <a href="#" class="flex items-center gap-2">
+                <span class="text-3xl">🪴</span>
+                <span class="text-2xl font-bold" style="color: var(--forest-green);">Plotify Pro</span>
+            </a>
+            <nav class="hidden md:flex items-center space-x-8">
+                <a href="#features" class="text-gray-600 hover:text-gray-900">Features</a>
+                <a href="#testimonials" class="text-gray-600 hover:text-gray-900">Testimonials</a>
+                <a href="#pricing" class="text-gray-600 hover:text-gray-900">Pricing</a>
+            </nav>
+            <a href="#" id="google-login-btn"
+                class="bg-white border border-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-gray-100 transition duration-200 flex items-center gap-2">
+                <svg class="w-5 h-5" viewBox="0 0 48 48">
+                    <path fill="#4285F4"
+                        d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z">
+                    </path>
+                    <path fill="#34A853"
+                        d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z">
+                        </-path>
+                        <path fill="#FBBC05"
+                            d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z">
+                            </-path>
+                            <path fill="#EA4335"
+                                d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C42.021 35.596 44 30.134 44 24c0-1.341-.138-2.65-.389-3.917z">
+                            </path>
+                </svg>
+                Login with Google
+            </a>
         </div>
-    </div>
+    </header>
 
+    <!-- Hero Section -->
+    <section class="relative min-h-screen flex items-center justify-center text-white pt-20 overflow-hidden">
+        <div class="hero-slideshow">
+            <div class="hero-slide active"
+                style="background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1525310072745-f49212b5ac6d?q=80&w=2070&auto=format&fit=crop');">
+            </div>
+            <div class="hero-slide"
+                style="background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1465146633011-14f8e0781093?q=80&w=2070&auto=format&fit=crop');">
+            </div>
+            <div class="hero-slide"
+                style="background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1544439249-1d84a7c03fbd?q=80&w=2070&auto=format&fit=crop');">
+            </div>
+            <div class="hero-slide"
+                style="background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1599684364278-2615b8d25515?q=80&w=2072&auto=format&fit=crop');">
+            </div>
+            <div class="hero-slide"
+                style="background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1571172828422-6506b3a98ab1?q=80&w=2070&auto=format&fit=crop');">
+            </div>
+            <div class="hero-slide"
+                style="background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1524311582258-52afee55c119?q=80&w=2070&auto=format&fit=crop');">
+            </div>
+            <div class="hero-slide"
+                style="background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1490750967868-88aa4486c946?q=80&w=2070&auto=format&fit=crop');">
+            </div>
+        </div>
+        <div class="text-center p-6 max-w-3xl z-10">
+            <h2 class="text-5xl md:text-6xl font-extrabold leading-tight mb-4 tracking-tight"
+                style="text-shadow: 2px 2px 8px rgba(0,0,0,0.7);">Design Smarter, Not Harder</h2>
+            <p class="text-lg md:text-xl mb-8 font-light" style="text-shadow: 1px 1px 4px rgba(0,0,0,0.7);">Leverage AI
+                to research, visualize, and organize plant selections for your landscape projects. Collaborate with
+                clients and streamline your design process like never before.</p>
+            <a href="#pricing"
+                class="text-white font-bold py-4 px-8 rounded-lg shadow-lg transition duration-300 ease-in-out transform hover:scale-105"
+                style="background-color: var(--sky-blue);">Get Started Now</a>
+        </div>
+    </section>
 
-<script>
-    // --- DATABASE ---
-    let plantDB = { plants: [] };
-    
-    // --- APP STATE ---
-    let plotItems = []; // Array of plant IDs in the plot
-
-    // --- DOM ELEMENTS ---
-    const plantSelector = document.getElementById('plant-selector');
-    const plotItemsContainer = document.getElementById('plot-items');
-    const plotCount = document.getElementById('plot-count');
-    const detailsPlaceholder = document.getElementById('details-placeholder');
-    const detailsContent = document.getElementById('details-content');
-    const shareButton = document.getElementById('share-button');
-    const generatePlanButton = document.getElementById('generate-plan-button');
-    const shareModal = document.getElementById('share-modal');
-    const closeModalButton = document.getElementById('close-modal-button');
-    const shareUrlInput = document.getElementById('share-url');
-    const copyButton = document.getElementById('copy-button');
-    const copyFeedback = document.getElementById('copy-feedback');
-    const geminiPlanSection = document.getElementById('gemini-plan-section');
-    const geminiPlanContent = document.getElementById('gemini-plan-content');
-
-
-    // --- DATA LOADING ---
-    
-    /**
-     * Loads the plant database from the JSON file.
-     */
-    async function loadPlantDatabase() {
-        try {
-            const response = await fetch('/api/plants');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            plantDB = await response.json();
-            console.log('Plant database loaded successfully:', plantDB);
-        } catch (error) {
-            console.error('Failed to load plant database:', error);
-            // Fallback to empty database
-            plantDB = { plants: [] };
-        }
-    }
-
-    // --- RENDER FUNCTIONS ---
-
-    /**
-     * Renders all plants into the main horizontally scrolling selector.
-     */
-    function renderPlantSelector() {
-        plantSelector.innerHTML = ''; // Clear existing content
-        plantDB.plants.forEach(plant => {
-            const isAdded = plotItems.includes(plant.id);
-            const card = document.createElement('div');
-            card.className = 'flex-shrink-0 w-80 bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-1 flex flex-col';
-            card.innerHTML = `
-                <div class="h-48 overflow-hidden">
-                     <img class="w-full h-full object-cover" src="https://placehold.co/600x400/a3e635/14532d?text=${encodeURIComponent(plant.common_name)}" alt="${plant.common_name}" onerror="this.onerror=null;this.src='https://placehold.co/600x400/e2e8f0/475569?text=Image+Not+Found';">
+    <!-- Features Section -->
+    <section id="features" class="py-20">
+        <div class="container mx-auto px-6 text-center">
+            <h2 class="text-4xl font-bold mb-4">The Future of Landscape Design</h2>
+            <p class="text-lg text-gray-600 mb-12 max-w-2xl mx-auto">Plotify Pro brings cutting-edge AI technology to
+                your fingertips, transforming the way you create beautiful, sustainable landscapes.</p>
+            <div class="grid md:grid-cols-3 gap-10">
+                <div class="bg-white p-8 rounded-xl shadow-lg fade-in">
+                    <div class="text-4xl mb-4" style="color: var(--forest-green);">🧠</div>
+                    <h3 class="text-xl font-bold mb-2">AI-Powered Research</h3>
+                    <p class="text-gray-600">Instantly access information, images, and videos for over 3,000 plants. Let
+                        our AI find the perfect species for any climate or soil type.</p>
                 </div>
-                <div class="p-5 flex flex-col flex-grow">
-                    <h3 class="text-lg font-semibold truncate">${plant.common_name}</h3>
-                    <p class="text-sm text-gray-500 italic mb-3">${plant.botanical_name}</p>
-                    
-                    <div class="space-y-2 text-sm text-gray-600 mb-4">
-                        <div class="flex items-center">
-                            <i data-lucide="thermometer-sun" class="w-4 h-4 mr-2 text-red-500"></i>
-                            <span>${plant.plant_features.hardiness || 'N/A'}</span>
-                        </div>
-                        <div class="flex items-center">
-                            <i data-lucide="sun" class="w-4 h-4 mr-2 text-yellow-500"></i>
-                            <span>${plant.plant_features.sun_requirements || 'N/A'}</span>
-                        </div>
-                        <div class="flex items-center">
-                            <i data-lucide="droplet" class="w-4 h-4 mr-2 text-blue-500"></i>
-                             <span>${plant.plant_features.water_needs || 'N/A'}</span>
-                        </div>
-                    </div>
-
-                    <div class="mt-auto flex space-x-2">
-                        <button class="view-details-btn flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition" data-id="${plant.id}">View Details</button>
-                        <button class="add-plot-btn flex-1 ${isAdded ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'} text-white px-3 py-2 rounded-lg text-sm font-medium transition" data-id="${plant.id}">
-                            ${isAdded ? 'Remove' : 'Add to Plot'}
-                        </button>
-                    </div>
+                <div class="bg-white p-8 rounded-xl shadow-lg fade-in">
+                    <div class="text-4xl mb-4" style="color: var(--forest-green);">🌿</div>
+                    <h3 class="text-xl font-bold mb-2">Visual Zone Planning</h3>
+                    <p class="text-gray-600">Group your selected plants into custom zones. Drag, drop, and visualize
+                        your design to create harmonious and practical layouts.</p>
                 </div>
-            `;
-            plantSelector.appendChild(card);
-        });
-        lucide.createIcons(); // Re-render icons after adding them to the DOM
-    }
-
-    /**
-     * Renders the items currently in the plot.
-     */
-    function renderPlot() {
-        plotCount.textContent = `${plotItems.length} items`;
-        const hasItems = plotItems.length > 0;
-        shareButton.disabled = !hasItems;
-        generatePlanButton.disabled = !hasItems;
-
-        if (!hasItems) {
-            plotItemsContainer.innerHTML = '<p class="text-gray-400">Your plot is empty. Add plants from the list.</p>';
-            geminiPlanSection.classList.add('hidden'); // Hide AI plan if plot is empty
-            return;
-        }
-
-        plotItemsContainer.innerHTML = '';
-        plotItems.forEach(id => {
-            const plant = plantDB.plants.find(p => p.id === id);
-            const item = document.createElement('div');
-            item.className = 'flex items-center justify-between bg-gray-50 p-2 rounded-md';
-            item.innerHTML = `
-                <div>
-                    <p class="font-medium text-sm">${plant.common_name}</p>
-                    <p class="text-xs text-gray-500">${plant.botanical_name}</p>
-                </div>
-                <button class="remove-plot-item-btn text-red-500 hover:text-red-700 p-1 rounded-full" data-id="${plant.id}">
-                    <svg class="w-5 h-5" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            `;
-            plotItemsContainer.appendChild(item);
-        });
-    }
-    
-    /**
-     * Renders the detailed view for a specific plant.
-     */
-    function renderPlantDetails(plantId) {
-        const plant = plantDB.plants.find(p => p.id === plantId);
-        if (!plant) return;
-        
-        const isAdded = plotItems.includes(plant.id);
-
-        detailsPlaceholder.classList.add('hidden');
-        detailsContent.classList.remove('hidden');
-
-        let featuresHtml = '';
-        for (const [key, value] of Object.entries(plant.plant_features)) {
-             if (typeof value === 'boolean' && value) {
-                featuresHtml += `<span class="bg-blue-100 text-blue-800 text-xs font-medium mr-2 mb-2 inline-block px-2.5 py-0.5 rounded-full">${key.replace(/_/g, ' ')}</span>`;
-             } else if (typeof value !== 'boolean') {
-                 featuresHtml += `<div class="text-sm mb-1"><strong class="capitalize font-medium text-gray-600">${key.replace(/_/g, ' ')}:</strong> <span class="text-gray-800">${value}</span></div>`;
-             }
-        }
-        
-        const plantName = plant.common_name;
-        const youtubeUrl = plant.youtube_url || `https://www.youtube.com/results?search_query=${encodeURIComponent(plantName + ' plant care')}`;
-        detailsContent.innerHTML = `
-            <div id="video-container" data-plant-name="${plantName}" data-youtube-url="${youtubeUrl}" class="relative mb-4 pb-[56.25%] h-0 rounded-lg overflow-hidden shadow-lg bg-black cursor-pointer group">
-                <img class="absolute top-0 left-0 w-full h-full object-cover opacity-75 group-hover:opacity-60 transition-opacity" src="https://placehold.co/600x400/166534/ffffff?text=Watch+Care+Videos+on+YouTube" alt="Watch care videos for ${plantName} on YouTube">
-                <div class="absolute inset-0 flex flex-col items-center justify-center">
-                    <svg class="w-16 h-16 text-white opacity-90 group-hover:opacity-100 transform group-hover:scale-110 transition-transform mb-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
-                    <p class="text-white text-sm font-medium opacity-90 group-hover:opacity-100">Click to watch on YouTube</p>
+                <div class="bg-white p-8 rounded-xl shadow-lg fade-in">
+                    <div class="text-4xl mb-4" style="color: var(--forest-green);">🤝</div>
+                    <h3 class="text-xl font-bold mb-2">Seamless Collaboration</h3>
+                    <p class="text-gray-600">Share your plant palettes and designs with clients. Get feedback in
+                        real-time and finalize your plant list together, hassle-free.</p>
                 </div>
             </div>
+        </div>
+    </section>
 
-            <h2 class="text-3xl font-bold">${plant.common_name}</h2>
-            <p class="text-md text-gray-500 italic mb-4">${plant.botanical_name}</p>
-            
-            <p class="text-gray-700 mb-6">${plant.description}</p>
-            
-            <div class="flex items-center justify-between mb-6">
-                <span class="text-sm font-semibold bg-green-100 text-green-800 px-3 py-1 rounded-full">${plant.category}</span>
-                <button class="add-plot-btn ${isAdded ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'} text-white px-4 py-2 rounded-lg text-sm font-medium transition" data-id="${plant.id}">
-                    ${isAdded ? 'Remove from Plot' : 'Add to Plot'}
-                </button>
+    <!-- Testimonials Section -->
+    <section id="testimonials" class="py-20" style="background-color: var(--white);">
+        <div class="container mx-auto px-6 text-center">
+            <h2 class="text-4xl font-bold mb-4">Loved by Professionals</h2>
+            <p class="text-lg text-gray-600 mb-12 max-w-2xl mx-auto">Hear what landscape designers and architects are
+                saying about Plotify Pro.</p>
+            <div class="grid md:grid-cols-3 gap-10">
+                <div class="bg-gray-50 p-8 rounded-xl shadow-lg fade-in">
+                    <img src="https://i.pravatar.cc/100?u=a" alt="User 1"
+                        class="w-20 h-20 rounded-full mx-auto mb-4 border-4 border-white shadow-md">
+                    <p class="text-gray-600 mb-4">"Plotify Pro has cut my research time in half. The AI suggestions are
+                        incredibly accurate and have introduced me to plants I never would have considered."</p>
+                    <h4 class="font-bold">- Sarah L., Landscape Architect</h4>
+                </div>
+                <div class="bg-gray-50 p-8 rounded-xl shadow-lg fade-in">
+                    <img src="https://i.pravatar.cc/100?u=b" alt="User 2"
+                        class="w-20 h-20 rounded-full mx-auto mb-4 border-4 border-white shadow-md">
+                    <p class="text-gray-600 mb-4">"The client collaboration feature is a game-changer. My clients feel
+                        more involved in the process, and approvals are faster than ever. A must-have tool."</p>
+                    <h4 class="font-bold">- David Chen, Garden Designer</h4>
+                </div>
+                <div class="bg-gray-50 p-8 rounded-xl shadow-lg fade-in">
+                    <img src="https://i.pravatar.cc/100?u=c" alt="User 3"
+                        class="w-20 h-20 rounded-full mx-auto mb-4 border-4 border-white shadow-md">
+                    <p class="text-gray-600 mb-4">"From plant database to final order sheet, my workflow is now
+                        seamless. Plotify Pro is intuitive, powerful, and beautifully designed."</p>
+                    <h4 class="font-bold">- Maria Rodriguez, Horticulturist</h4>
+                </div>
             </div>
-            
-            <div class="space-y-4 border-t pt-4">
-                 <h4 class="text-lg font-semibold mb-2">Plant Features</h4>
-                 <div class="text-sm">
-                    ${featuresHtml}
-                 </div>
-                 <h4 class="text-lg font-semibold mb-2 mt-4">Dimensions</h4>
-                 <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                    <div><strong class="font-medium text-gray-600">Height:</strong> ${plant.dimensions.height}</div>
-                    <div><strong class="font-medium text-gray-600">Width:</strong> ${plant.dimensions.width}</div>
-                 </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="py-20">
+        <div class="container mx-auto px-6 text-center">
+            <h2 class="text-4xl font-bold mb-4">Find the Perfect Plan</h2>
+            <p class="text-lg text-gray-600 mb-12 max-w-2xl mx-auto">Start for free or unlock powerful professional
+                features. Choose the plan that's right for you.</p>
+            <div class="flex flex-col md:flex-row justify-center items-center gap-8 max-w-4xl mx-auto">
+                <!-- Basic Plan -->
+                <div class="bg-white p-8 rounded-xl shadow-lg w-full md:w-1/2 fade-in">
+                    <h3 class="text-2xl font-bold mb-2">Basic</h3>
+                    <p class="text-5xl font-extrabold mb-4">Free</p>
+                    <p class="text-gray-500 mb-6">Perfect for hobbyists and small projects.</p>
+                    <ul class="text-left space-y-3 text-gray-600 mb-8">
+                        <li class="flex items-center"><span class="text-green-500 mr-2">✔</span> 1 Active Project</li>
+                        <li class="flex items-center"><span class="text-green-500 mr-2">✔</span> Search 3000+ Plants
+                        </li>
+                        <li class="flex items-center"><span class="text-green-500 mr-2">✔</span> AI-Powered Research
+                        </li>
+                        <li class="flex items-center text-gray-400"><span class="mr-2">✖</span> Client Collaboration
+                        </li>
+                        <li class="flex items-center text-gray-400"><span class="mr-2">✖</span> Unlimited Project
+                            Storage</li>
+                        <li class="flex items-center text-gray-400"><span class="mr-2">✖</span> Download Plant Lists
+                        </li>
+                    </ul>
+                    <a href="#"
+                        class="w-full block text-center font-bold py-3 px-8 rounded-lg border-2 transition duration-300 ease-in-out"
+                        style="color: var(--sky-blue); border-color: var(--sky-blue);">Get Started</a>
+                </div>
+
+                <!-- Pro Plan -->
+                <div class="bg-white p-8 rounded-xl shadow-lg w-full md:w-1/2 relative pricing-card-popular fade-in">
+                    <div
+                        class="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 bg-yellow-400 text-yellow-900 font-bold px-4 py-1 rounded-full text-sm">
+                        Most Popular</div>
+                    <h3 class="text-2xl font-bold mb-2" style="color: var(--forest-green);">Pro</h3>
+                    <p class="text-5xl font-extrabold mb-4">$20<span
+                            class="text-lg font-normal text-gray-500">/month</span></p>
+                    <p class="text-gray-500 mb-6">For professionals who demand the best.</p>
+                    <ul class="text-left space-y-3 text-gray-600 mb-8">
+                        <li class="flex items-center"><span class="font-bold mr-2"
+                                style="color: var(--forest-green);">✔</span> Unlimited Projects</li>
+                        <li class="flex items-center"><span class="font-bold mr-2"
+                                style="color: var(--forest-green);">✔</span> Search 3000+ Plants</li>
+                        <li class="flex items-center"><span class="font-bold mr-2"
+                                style="color: var(--forest-green);">✔</span> AI-Powered Research</li>
+                        <li class="flex items-center"><span class="font-bold mr-2"
+                                style="color: var(--forest-green);">✔</span> Client Collaboration</li>
+                        <li class="flex items-center"><span class="font-bold mr-2"
+                                style="color: var(--forest-green);">✔</span> Unlimited Project Storage</li>
+                        <li class="flex items-center"><span class="font-bold mr-2"
+                                style="color: var(--forest-green);">✔</span> Download Plant Lists</li>
+                    </ul>
+                    <a href="#"
+                        class="w-full block text-white font-bold py-3 px-8 rounded-lg shadow-lg transition duration-300 ease-in-out transform hover:scale-105"
+                        style="background-color: var(--sky-blue);">Choose Pro</a>
+                </div>
             </div>
-        `;
-    }
+        </div>
+    </section>
 
-    // --- GEMINI API FUNCTIONS ---
-    async function callGeminiAPI(prompt, retries = 3, delay = 1000) {
-        const apiKey = ""; // This will be provided by the execution environment.
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+    <!-- Footer -->
+    <footer class="bg-white py-8">
+        <div class="container mx-auto px-6 text-center text-gray-600">
+            <p>&copy; 2025 Plotify Pro. All rights reserved. Revolutionizing landscape design, one plant at a time.</p>
+        </div>
+    </footer>
 
-        const payload = {
-            contents: [{ parts: [{ text: prompt }] }],
-        };
-
-        for (let i = 0; i < retries; i++) {
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const result = await response.json();
-                const candidate = result.candidates?.[0];
-
-                if (candidate && candidate.content?.parts?.[0]?.text) {
-                    return candidate.content.parts[0].text;
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Header scroll effect
+            const header = document.getElementById('header');
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 50) {
+                    header.classList.add('header-scrolled');
                 } else {
-                    const finishReason = candidate?.finishReason || 'UNKNOWN';
-                    const safetyRatings = JSON.stringify(candidate?.safetyRatings || [], null, 2);
-                    throw new Error(`API returned no content. Finish reason: ${finishReason}. Safety ratings: ${safetyRatings}`);
+                    header.classList.remove('header-scrolled');
+                }
+            });
+
+            // Fade-in animation on scroll
+            const faders = document.querySelectorAll('.fade-in');
+            const appearOptions = {
+                threshold: 0.2,
+                rootMargin: "0px 0px -50px 0px"
+            };
+            const appearOnScroll = new IntersectionObserver(function (entries, appearOnScroll) {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) {
+                        return;
+                    } else {
+                        entry.target.classList.add('visible');
+                        appearOnScroll.unobserve(entry.target);
+                    }
+                });
+            }, appearOptions);
+
+            faders.forEach(fader => {
+                appearOnScroll.observe(fader);
+            });
+
+            // Hero slideshow logic
+            const slides = document.querySelectorAll('.hero-slide');
+            let currentSlide = 0;
+
+            function showSlide(index) {
+                slides.forEach((slide, i) => {
+                    slide.classList.remove('active');
+                });
+                slides[index].classList.add('active');
+            }
+
+            setInterval(() => {
+                currentSlide = (currentSlide + 1) % slides.length;
+                showSlide(currentSlide);
+            }, 3500); // Change image every 3.5 seconds
+
+            // --- FIREBASE LOGIN LOGIC ---
+
+            // 1. Your Firebase configuration object (paste yours here)
+            // IMPORTANT: Replace the placeholder values below with your actual
+            // Firebase project's configuration.
+            const firebaseConfig = {
+                apiKey: "AIzaSyB9qd27E11AtNXddGGrIjw_SMpvMX9Rj9g",
+                authDomain: "plotifypro-195ee.firebaseapp.com",
+                projectId: "plotifypro-195ee",
+                storageBucket: "plotifypro-195ee.firebasestorage.app",
+                messagingSenderId: "754999219864",
+                appId: "1:754999219864:web:c87092b42344828bae22ed",
+                measurementId: "G-0KLXX8P9WW"
+            };
+
+            // 2. Initialize Firebase
+            try {
+                firebase.initializeApp(firebaseConfig);
+                const auth = firebase.auth();
+                const provider = new firebase.auth.GoogleAuthProvider();
+
+                // 3. Add Click Listener to the Login Button
+                const googleLoginBtn = document.getElementById('google-login-btn');
+
+                if (googleLoginBtn) {
+                    googleLoginBtn.addEventListener('click', (e) => {
+                        e.preventDefault(); // Prevent the link from navigating
+
+                        auth.signInWithPopup(provider)
+                            .then((result) => {
+                                // This is the crucial token you need to send to your backend
+                                return result.user.getIdToken();
+                            })
+                            .then((idToken) => {
+                                // Now, send this token to your backend for verification
+                                return fetch('/api/auth/google', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({ id_token: idToken }),
+                                });
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Extract JWT and user data from the new response format
+                                    const jwtData = data.data.jwt;
+                                    const userData = data.data.user;
+                                    
+                                    console.log('Received our custom JWT:', jwtData);
+                                    console.log('User data:', userData);
+
+                                    // Store JWT and user data for future API calls
+                                    localStorage.setItem('jwt_token', jwtData.token);
+                                    localStorage.setItem('user_id', jwtData.userId);
+                                    localStorage.setItem('username', jwtData.username);
+                                    localStorage.setItem('email', jwtData.email);
+                                    localStorage.setItem('internal_id', userData.internalId);
+                                    localStorage.setItem('subscription', JSON.stringify(userData.subscription));
+
+                                    // Redirect to the dashboard
+                                    window.location.href = '/users/projects';
+                                } else {
+                                    throw new Error(data.message || 'Authentication failed');
+                                }
+                            })
+                            .catch((error) => {
+                                // Handle Errors here.
+                                const errorMessage = error.message;
+                                console.error('Login failed:', errorMessage);
+                                alert('Login failed: ' + errorMessage);
+                            });
+                    });
                 }
             } catch (error) {
-                console.error(`Attempt ${i + 1} failed:`, error);
-                if (i < retries - 1) {
-                    await new Promise(res => setTimeout(res, delay));
-                    delay *= 2; // Exponential backoff
-                } else {
-                    throw error;
+                console.error("Firebase initialization error:", error);
+                if (error.message.includes("apiKey")) {
+                    console.warn("Please make sure to replace the placeholder firebaseConfig values with your actual Firebase project configuration.");
                 }
             }
-        }
-    }
-
-    async function handleGeneratePlan() {
-        if (plotItems.length === 0) return;
-
-        geminiPlanSection.classList.remove('hidden');
-        geminiPlanContent.innerHTML = `
-            <div class="flex items-center justify-center space-x-2">
-              <div class="w-4 h-4 rounded-full animate-pulse bg-purple-400"></div>
-              <div class="w-4 h-4 rounded-full animate-pulse bg-purple-400" style="animation-delay: 0.2s;"></div>
-              <div class="w-4 h-4 rounded-full animate-pulse bg-purple-400" style="animation-delay: 0.4s;"></div>
-              <p class="text-gray-500">Generating your custom garden plan...</p>
-            </div>
-        `;
-
-        const plantList = plotItems.map(id => {
-            const plant = plantDB.plants.find(p => p.id === id);
-            return plant.common_name;
         });
-        const plantListString = plantList.join(', ');
-
-        const prompt = `You are an expert landscape designer. A user has selected the following plants for their garden: ${plantListString}. Create a simple, elegant garden plan for them. The plan should include: 1. A short, inspiring theme name for this garden collection. 2. A 'Layout Suggestion' section describing how to group or arrange these plants (e.g., 'Place taller plants in the back'). 3. A 'Care Guide' section with bullet points for soil, watering, and sun exposure requirements for the collection as a whole. Format your entire response as clean HTML using only h3 for titles, p for paragraphs, ul and li for lists. Do not include <!DOCTYPE>, <html>, or <body> tags.`;
-
-        try {
-            const resultHtml = await callGeminiAPI(prompt);
-            geminiPlanContent.innerHTML = resultHtml;
-        } catch (error) {
-            console.error('Failed to generate plan:', error);
-            geminiPlanContent.innerHTML = `<p class="text-red-500">Sorry, we couldn't generate a plan at this time. Please try again later.</p>`;
-        }
-    }
-
-
-    // --- EVENT HANDLERS & LOGIC ---
-
-    function loadYoutubePlayer(container, plantName) {
-        if (!container || !plantName) return;
-        
-        // Get the YouTube URL from the container's data attribute
-        const youtubeUrl = container.dataset.youtubeUrl;
-        
-        // Since the URLs are search result URLs, we'll open them in a new tab
-        // This provides a better user experience than trying to embed search results
-        if (youtubeUrl) {
-            window.open(youtubeUrl, '_blank');
-        } else {
-            // Fallback to opening a generic search in a new tab
-            window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(plantName + ' plant care')}`, '_blank');
-        }
-    }
-
-    function handlePlotToggle(plantId) {
-        if (plotItems.includes(plantId)) {
-            plotItems = plotItems.filter(id => id !== plantId);
-        } else {
-            plotItems.push(plantId);
-        }
-        updateURL();
-        renderPlot();
-        renderPlantSelector(); // Re-render selector to update button states
-        
-        const detailButton = detailsContent.querySelector(`.add-plot-btn[data-id="${plantId}"]`);
-        if (detailButton) {
-            const isAdded = plotItems.includes(plantId);
-            detailButton.textContent = isAdded ? 'Remove from Plot' : 'Add to Plot';
-            detailButton.classList.toggle('bg-red-500', isAdded);
-            detailButton.classList.toggle('hover:bg-red-600', isAdded);
-            detailButton.classList.toggle('bg-green-500', !isAdded);
-            detailButton.classList.toggle('hover:bg-green-600', !isAdded);
-        }
-    }
-    
-    document.body.addEventListener('click', (e) => {
-        const viewBtn = e.target.closest('.view-details-btn');
-        const addBtn = e.target.closest('.add-plot-btn');
-        const removeBtn = e.target.closest('.remove-plot-item-btn');
-        const videoContainer = e.target.closest('#video-container');
-
-        if (videoContainer && !videoContainer.querySelector('iframe')) {
-            const plantName = videoContainer.dataset.plantName;
-            loadYoutubePlayer(videoContainer, plantName);
-        }
-
-        if (viewBtn) {
-            const plantId = parseInt(viewBtn.dataset.id);
-            renderPlantDetails(plantId);
-        }
-        if (addBtn) {
-            const plantId = parseInt(addBtn.dataset.id);
-            handlePlotToggle(plantId);
-        }
-        if (removeBtn) {
-            const plantId = parseInt(removeBtn.dataset.id);
-            handlePlotToggle(plantId);
-        }
-    });
-    
-    generatePlanButton.addEventListener('click', handleGeneratePlan);
-    
-    /**
-     * Updates the URL with the current plot items.
-     * This is wrapped in a try/catch block to prevent errors in sandboxed environments.
-     */
-    function updateURL() {
-        try {
-            const params = new URLSearchParams(window.location.search);
-            if (plotItems.length > 0) {
-                params.set('plot', plotItems.join(','));
-            } else {
-                params.delete('plot');
-            }
-            const newUrl = `${window.location.pathname}?${params.toString()}`;
-            // Using replaceState can cause errors in certain sandboxed iframes.
-            // window.history.replaceState({}, '', newUrl);
-        } catch (error) {
-            console.warn("Could not update URL:", error.message);
-        }
-    }
-    
-    function loadPlotFromURL() {
-        try {
-            const params = new URLSearchParams(window.location.search);
-            const plotFromURL = params.get('plot');
-            if (plotFromURL) {
-                plotItems = plotFromURL.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
-            }
-        } catch(error) {
-             console.warn("Could not load plot from URL:", error.message);
-        }
-    }
-    
-    shareButton.addEventListener('click', () => {
-        if (plotItems.length > 0) {
-            // Manually construct the URL to avoid security errors with window.location.href
-            const baseUrl = window.location.href.split('?')[0];
-            const shareableUrl = `${baseUrl}?plot=${plotItems.join(',')}`;
-            shareUrlInput.value = shareableUrl;
-            shareModal.classList.remove('hidden');
-        }
-    });
-
-    closeModalButton.addEventListener('click', () => {
-        shareModal.classList.add('hidden');
-        copyFeedback.textContent = '';
-    });
-    
-    copyButton.addEventListener('click', () => {
-        shareUrlInput.select();
-        try {
-            document.execCommand('copy');
-            copyFeedback.textContent = 'Copied to clipboard!';
-            setTimeout(() => { copyFeedback.textContent = ''; }, 2000);
-        } catch (err) {
-            copyFeedback.textContent = 'Failed to copy!';
-        }
-    });
-
-    // --- INITIALIZATION ---
-    document.addEventListener('DOMContentLoaded', async () => {
-        // Show loading state
-        plantSelector.innerHTML = `
-            <div class="flex items-center justify-center w-full h-32">
-                <div class="flex items-center space-x-2">
-                    <div class="w-4 h-4 rounded-full animate-pulse bg-green-400"></div>
-                    <div class="w-4 h-4 rounded-full animate-pulse bg-green-400" style="animation-delay: 0.2s;"></div>
-                    <div class="w-4 h-4 rounded-full animate-pulse bg-green-400" style="animation-delay: 0.4s;"></div>
-                    <p class="text-gray-500">Loading plant database...</p>
-                </div>
-            </div>
-        `;
-        
-        // Load plant database first
-        await loadPlantDatabase();
-        
-        // Check if database loaded successfully
-        if (plantDB.plants.length === 0) {
-            plantSelector.innerHTML = `
-                <div class="flex items-center justify-center w-full h-32">
-                    <div class="text-center">
-                        <p class="text-red-500 mb-2">Failed to load plant database</p>
-                        <p class="text-gray-500 text-sm">Please check that plant-db.json exists and is accessible</p>
-                    </div>
-                </div>
-            `;
-            return;
-        }
-        
-        // Then load plot from URL and render everything
-        loadPlotFromURL();
-        renderPlantSelector();
-        renderPlot();
-        
-        if(plotItems.length > 0) {
-            renderPlantDetails(plotItems[0]);
-        }
-    });
-
-</script>
+    </script>
 
 </body>
-</html>
 
+</html>

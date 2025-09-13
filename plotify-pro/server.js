@@ -2,8 +2,15 @@
 require('dotenv').config();
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const admin = require('firebase-admin');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { loadEngine } = require("./plantQueryEngine");
+
+// Firebase Admin SDK Configuration
+const serviceAccount = require('./serviceAccountKey.json');
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 // --- Configuration ---
 const app = express();
@@ -34,6 +41,24 @@ if (!jsonbinApiKey) {
   console.warn("Warning: JSONBIN_API_KEY not set. Projects API will return configuration error.");
 }
 
+// Check for USERS_BIN ID
+const usersBinId = process.env.USERS_BIN;
+if (!usersBinId) {
+  console.warn("Warning: USERS_BIN not set. User management will not work properly.");
+}
+const genAI = new GoogleGenerativeAI(geminiApiKey);
+const model = genAI.getGenerativeModel({ model: geminiModel });
+
+// Load the engine once at startup
+const engine = loadEngine("./data/plants.json");
+
+// --- Middleware ---
+app.use(express.json());
+app.use(express.static('public')); // Serve static files from public directory
+
+
+
+
 // JWT Helper Functions
 const generateToken = (userId) => {
   return jwt.sign({ userId }, jwtSecret, { expiresIn: jwtExpiresIn });
@@ -47,15 +72,187 @@ const verifyToken = (token) => {
   }
 };
 
-const genAI = new GoogleGenerativeAI(geminiApiKey);
-const model = genAI.getGenerativeModel({ model: geminiModel });
+// User Management Functions
+const getUserData = async (userId) => {
+  if (!jsonbinApiKey || !usersBinId) {
+    throw new Error('JSONBin configuration missing. USERS_BIN and JSONBIN_API_KEY must be set.');
+  }
 
-// Load the engine once at startup
-const engine = loadEngine("./data/plants.json");
+  try {
+    const usersResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${usersBinId}/latest`), {
+      method: 'GET',
+      headers: {
+        'X-Master-Key': jsonbinApiKey,
+        'Content-Type': 'application/json'
+      }
+    });
 
-// --- Middleware ---
-app.use(express.json());
-app.use(express.static('public')); // Serve static files from public directory
+    if (!usersResponse.ok) {
+      throw new Error(`Failed to fetch users data: ${usersResponse.status}`);
+    }
+
+    const usersData = await usersResponse.json();
+    const users = usersData.record || {};
+    
+    return users[userId] || null;
+  } catch (error) {
+    console.error('Error fetching user data:', error);
+    throw error;
+  }
+};
+
+const updateUserData = async (userId, updatedUserData) => {
+  if (!jsonbinApiKey || !usersBinId) {
+    throw new Error('JSONBin configuration missing. USERS_BIN and JSONBIN_API_KEY must be set.');
+  }
+
+  try {
+    // First, get all users data
+    const usersResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${usersBinId}/latest`), {
+      method: 'GET',
+      headers: {
+        'X-Master-Key': jsonbinApiKey,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!usersResponse.ok) {
+      throw new Error(`Failed to fetch users data: ${usersResponse.status}`);
+    }
+
+    const usersData = await usersResponse.json();
+    const users = usersData.record || {};
+
+    // Update the specific user
+    users[userId] = updatedUserData;
+
+    // Save updated users data back to JSONBin
+    const updateResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${usersBinId}`), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': jsonbinApiKey
+      },
+      body: JSON.stringify(users)
+    });
+
+    if (!updateResponse.ok) {
+      throw new Error(`Failed to update user data: ${updateResponse.status}`);
+    }
+
+    console.log(`Updated user data for ${userId}`);
+    return true;
+  } catch (error) {
+    console.error('Error updating user data:', error);
+    throw error;
+  }
+};
+
+const verifyAndCreateUser = async (googleUserId, name, email) => {
+  if (!jsonbinApiKey || !usersBinId) {
+    throw new Error('JSONBin configuration missing. USERS_BIN and JSONBIN_API_KEY must be set.');
+  }
+
+  try {
+    // Fetch the users JSON from JSONBin
+    const usersResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${usersBinId}/latest`), {
+      method: 'GET',
+      headers: {
+        'X-Master-Key': jsonbinApiKey,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!usersResponse.ok) {
+      throw new Error(`Failed to fetch users data: ${usersResponse.status}`);
+    }
+
+    const usersData = await usersResponse.json();
+    const users = usersData.record || {};
+
+    // Check if user already exists
+    if (users[googleUserId]) {
+      // Update lastLogin timestamp
+      users[googleUserId].lastLogin = new Date().toISOString();
+      
+      // Ensure ownedProjects and sharedProjects arrays exist (migration for existing users)
+      if (!users[googleUserId].ownedProjects) {
+        users[googleUserId].ownedProjects = [];
+      }
+      if (!users[googleUserId].sharedProjects) {
+        users[googleUserId].sharedProjects = [];
+      }
+      
+      // Save updated users data back to JSONBin
+      const updateResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${usersBinId}`), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': jsonbinApiKey
+        },
+        body: JSON.stringify(users)
+      });
+
+      if (!updateResponse.ok) {
+        console.warn('Failed to update lastLogin timestamp, but user exists');
+      }
+
+      console.log(`User ${googleUserId} already exists, updated lastLogin`);
+      return {
+        exists: true,
+        user: users[googleUserId],
+        isNew: false
+      };
+    }
+
+    // User doesn't exist, create new user
+    const internalId = `user_${Date.now()}`;
+    const now = new Date().toISOString();
+    
+    const newUser = {
+      internalId: internalId,
+      name: name,
+      email: email,
+      createdAt: now,
+      lastLogin: now,
+      ownedProjects: [],
+      sharedProjects: [],
+      subscription: {
+        plan: "Basic",
+        status: "active",
+        startDate: now
+      }
+    };
+
+    // Add new user to users object
+    users[googleUserId] = newUser;
+
+    // Save updated users data back to JSONBin
+    const updateResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${usersBinId}`), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': jsonbinApiKey
+      },
+      body: JSON.stringify(users)
+    });
+
+    if (!updateResponse.ok) {
+      throw new Error(`Failed to create user: ${updateResponse.status}`);
+    }
+
+    console.log(`Created new user ${googleUserId} with internal ID ${internalId}`);
+    return {
+      exists: false,
+      user: newUser,
+      isNew: true
+    };
+
+  } catch (error) {
+    console.error('Error in verifyAndCreateUser:', error);
+    throw error;
+  }
+};
 
 
 // --- Login Endpoint ---
@@ -83,6 +280,211 @@ app.post('/api/auth/login', (req, res) => {
     console.error('Error generating token:', error);
     res.status(500).json({
       error: 'Token generation failed',
+      message: error.message
+    });
+  }
+});
+
+// --- Google OAuth Endpoint ---
+app.post('/api/auth/google', async (req, res) => {
+  const { id_token } = req.body;
+  
+  if (!id_token) {
+    return res.status(400).json({ 
+      error: 'ID token required',
+      message: 'Please provide Google ID token in request body'
+    });
+  }
+
+  console.log(`Verifying Google ID token: ${id_token}`);
+  try {
+    // Verify the Google ID token using Firebase Admin SDK
+    const decodedToken = await admin.auth().verifyIdToken(id_token);
+    
+    if (!decodedToken) {
+      throw new Error('Invalid token payload');
+    }
+
+    // Extract user information from Google token
+    const googleUserId = decodedToken.uid; // Firebase UID (same as Google's sub)
+    const email = decodedToken.email;
+    const name = decodedToken.name;
+
+    // Verify and create user using centralized user management
+    const userResult = await verifyAndCreateUser(googleUserId, name, email);
+    
+    if (userResult.isNew) {
+      console.log(`New user created via Google OAuth: ${name} (${email})`);
+    } else {
+      console.log(`Existing user logged in via Google OAuth: ${name} (${email})`);
+    }
+
+    // Generate our own JWT token using Google's user ID
+    const token = generateToken(googleUserId);
+    console.log(`Generated JWT token for Google user: ${googleUserId} (${email})`);
+    
+    res.json({
+      success: true,
+      data: {
+        jwt: {
+          token: token,
+          userId: googleUserId,
+          username: name,
+          email: email,
+          expiresIn: jwtExpiresIn
+        },
+        user: {
+          internalId: userResult.user.internalId,
+          subscription: userResult.user.subscription,
+          createdAt: userResult.user.createdAt,
+          lastLogin: userResult.user.lastLogin
+        }
+      },
+      message: userResult.isNew ? 'New user created and authenticated' : 'User authenticated successfully'
+    });
+
+  } catch (error) {
+    console.error('Google OAuth verification failed:', error);
+    
+    // Handle specific Firebase Auth errors
+    if (error.code === 'auth/id-token-expired') {
+      return res.status(400).json({
+        error: 'Token expired',
+        message: 'Google token has expired. Please sign in again.'
+      });
+    }
+    
+    if (error.code === 'auth/invalid-id-token') {
+      return res.status(400).json({
+        error: 'Invalid token',
+        message: 'Google token is invalid. Please sign in again.'
+      });
+    }
+
+    if (error.code === 'auth/id-token-revoked') {
+      return res.status(400).json({
+        error: 'Token revoked',
+        message: 'Google token has been revoked. Please sign in again.'
+      });
+    }
+
+    res.status(401).json({
+      error: 'Google authentication failed',
+      message: 'Invalid or expired Google token. Please sign in again.'
+    });
+  }
+});
+
+// --- User Creation Endpoint ---
+app.post('/api/users', async (req, res) => {
+  const { name, email, password } = req.body;
+  
+  if (!name || !email) {
+    return res.status(400).json({ 
+      error: 'Missing required fields',
+      message: 'Please provide name and email'
+    });
+  }
+
+  if (!jsonbinApiKey) {
+    return res.status(500).json({
+      error: 'JSONBin not configured',
+      message: 'JSONBIN_API_KEY not set in server configuration'
+    });
+  }
+
+  try {
+    // Create user in Firebase Auth
+    let firebaseUser;
+    if (password) {
+      // Create user with email/password
+      firebaseUser = await admin.auth().createUser({
+        email: email,
+        password: password,
+        displayName: name
+      });
+    } else {
+      // Create user without password (for OAuth users)
+      firebaseUser = await admin.auth().createUser({
+        email: email,
+        displayName: name
+      });
+    }
+
+    const userId = firebaseUser.uid;
+    const createdAt = new Date().toISOString();
+
+    // Create user data object
+    const userData = {
+      userId: userId,
+      username: name,
+      email: email,
+      createdAt: createdAt,
+      ownedProjects: [],
+      sharedProjects: []
+    };
+
+    // Create new bin in JSONBin.io using userId as bin ID
+    const createBinResponse = await fetch(JSONBIN_CONFIG.getUrl('/b'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': jsonbinApiKey,
+        'X-Bin-Name': `user-${name}-${userId.substring(0, 8)}`,
+        'X-Bin-Id': userId // Use Firebase UID as bin ID
+      },
+      body: JSON.stringify(userData)
+    });
+
+    if (!createBinResponse.ok) {
+      // If bin creation fails, clean up Firebase user
+      await admin.auth().deleteUser(userId);
+      throw new Error(`Failed to create user data bin: ${createBinResponse.status}`);
+    }
+
+    const binData = await createBinResponse.json();
+    console.log(`Created user: ${name} (${email}) with Firebase UID: ${userId}`);
+    console.log(`Created JSONBin: ${binData.metadata.id}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      user: {
+        userId: userId,
+        username: name,
+        email: email,
+        createdAt: createdAt,
+        binId: binData.metadata.id
+      }
+    });
+
+  } catch (error) {
+    console.error('Error creating user:', error);
+    
+    // Handle Firebase Auth errors
+    if (error.code === 'auth/email-already-exists') {
+      return res.status(409).json({
+        error: 'Email already exists',
+        message: 'A user with this email already exists'
+      });
+    }
+    
+    if (error.code === 'auth/invalid-email') {
+      return res.status(400).json({
+        error: 'Invalid email',
+        message: 'Please provide a valid email address'
+      });
+    }
+
+    if (error.code === 'auth/weak-password') {
+      return res.status(400).json({
+        error: 'Weak password',
+        message: 'Password should be at least 6 characters'
+      });
+    }
+
+    res.status(500).json({
+      error: 'User creation failed',
       message: error.message
     });
   }
@@ -173,36 +575,23 @@ app.post('/users/projects', async (req, res) => {
       
       // Add project ID to user's owned projects list
       try {
-        const userBinResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${userId}`), {
-          method: 'GET',
-          headers: {
-            'X-Master-Key': process.env.JSONBIN_API_KEY
-          }
-        });
-
-        if (userBinResponse.ok) {
-          const userData = await userBinResponse.json();
-          const ownedProjects = userData.record.ownedProjects || [];
+        const userData = await getUserData(userId);
+        if (userData) {
+          const ownedProjects = userData.ownedProjects || [];
           
           // Add new project ID to the list
           ownedProjects.push(projectId);
           
           // Update user's owned projects list
-          const updateUserResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${userId}`), {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Master-Key': process.env.JSONBIN_API_KEY
-            },
-            body: JSON.stringify({
-              ...userData.record,
-              ownedProjects: ownedProjects
-            })
-          });
-
-          if (!updateUserResponse.ok) {
-            console.warn('Failed to update user\'s owned projects list, but project was created');
-          }
+          const updatedUserData = {
+            ...userData,
+            ownedProjects: ownedProjects
+          };
+          
+          await updateUserData(userId, updatedUserData);
+          console.log(`Added project ${projectId} to user ${userId}'s owned projects`);
+        } else {
+          console.warn(`User ${userId} not found in centralized users bin`);
         }
       } catch (userUpdateError) {
         console.warn('Failed to update user\'s owned projects list:', userUpdateError);
@@ -278,40 +667,25 @@ app.delete('/users/projects/:id', async (req, res) => {
       }
 
       // Remove project from user's owned projects list
-      const userResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${userId}`), {
-        method: 'GET',
-        headers: {
-          'X-Master-Key': process.env.JSONBIN_API_KEY
+      try {
+        const userData = await getUserData(userId);
+        if (userData) {
+          const ownedProjects = userData.ownedProjects || [];
+          const updatedOwnedProjects = ownedProjects.filter(id => id !== projectId);
+
+          // Update user's owned projects list
+          const updatedUserData = {
+            ...userData,
+            ownedProjects: updatedOwnedProjects
+          };
+          
+          await updateUserData(userId, updatedUserData);
+          console.log(`Removed project ${projectId} from user ${userId}'s owned projects`);
+        } else {
+          console.warn(`User ${userId} not found in centralized users bin`);
         }
-      });
-
-      if (!userResponse.ok) {
-        console.error('Failed to fetch user data for project removal');
-        return res.status(500).json({ 
-          success: false, 
-          error: 'Failed to update user project list'
-        });
-      }
-
-      const userData = await userResponse.json();
-      const ownedProjects = userData.record.ownedProjects || [];
-      const updatedOwnedProjects = ownedProjects.filter(id => id !== projectId);
-
-      // Update user's owned projects list
-      const updateUserResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${userId}`), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Master-Key': process.env.JSONBIN_API_KEY
-        },
-        body: JSON.stringify({
-          ...userData.record,
-          ownedProjects: updatedOwnedProjects
-        })
-      });
-
-      if (!updateUserResponse.ok) {
-        console.error('Failed to update user project list');
+      } catch (userUpdateError) {
+        console.error('Failed to update user project list:', userUpdateError);
         return res.status(500).json({ 
           success: false, 
           error: 'Project deleted but failed to update user project list'
@@ -565,13 +939,12 @@ app.get('/api/users/projects', async (req, res) => {
       });
     }
     
-    // Use user ID as bin ID
-    const binId = userId;
-    const jsonbinUrl = JSONBIN_CONFIG.getUrl(`/b/${binId}/latest`);
+    // Use centralized USERS_BIN to get user data
+    const usersBinUrl = JSONBIN_CONFIG.getUrl(`/b/${usersBinId}/latest`);
     
-    console.log(`Fetching data from JSONBin.io: ${jsonbinUrl}`);
+    console.log(`Fetching user data from centralized USERS_BIN: ${usersBinUrl}`);
     
-    const response = await fetch(jsonbinUrl, {
+    const response = await fetch(usersBinUrl, {
       method: 'GET',
       headers: {
         'X-Master-Key': jsonbinApiKey,
@@ -583,11 +956,18 @@ app.get('/api/users/projects', async (req, res) => {
       throw new Error(`JSONBin.io API error: ${response.status} ${response.statusText}`);
     }
     
-    const binData = await response.json();
-    console.log('JSONBin.io response received');
+    const usersData = await response.json();
+    console.log('Centralized users data received');
     
-    // Get the array of project IDs
-    const ownedProjects = binData.record.ownedProjects || [];
+    // Extract specific user data by userId key
+    const userData = usersData.record[userId];
+    if (!userData) {
+      console.log(`User ${userId} not found in centralized users bin`);
+      return []; // Return empty array if user not found
+    }
+    
+    // Get the array of project IDs from the user data
+    const ownedProjects = userData.ownedProjects || [];
     console.log(`Found ${ownedProjects.length} project IDs to fetch`);
     
     // Fetch details for each project
