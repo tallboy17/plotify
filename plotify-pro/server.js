@@ -6,11 +6,7 @@ const admin = require('firebase-admin');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { loadEngine } = require("./plantQueryEngine");
 
-// Firebase Admin SDK Configuration
-const serviceAccount = require('./serviceAccountKey.json');
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+
 
 // --- Configuration ---
 const app = express();
@@ -20,6 +16,13 @@ const systemPrompt = process.env.SYSTEM_PROMPT;
 const geminiModel = process.env.GEMINI_MODEL;
 const jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
 const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '24h';
+const serviceAccountKey = process.env.SERVICE_ACCOUNT_KEY;
+
+// Firebase Admin SDK Configuration
+const serviceAccount = require(serviceAccountKey);
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 // --- JSONBin Configuration ---
 const JSONBIN_CONFIG = {
@@ -73,81 +76,6 @@ const verifyToken = (token) => {
 };
 
 // User Management Functions
-const getUserData = async (userId) => {
-  if (!jsonbinApiKey || !usersBinId) {
-    throw new Error('JSONBin configuration missing. USERS_BIN and JSONBIN_API_KEY must be set.');
-  }
-
-  try {
-    const usersResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${usersBinId}/latest`), {
-      method: 'GET',
-      headers: {
-        'X-Master-Key': jsonbinApiKey,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!usersResponse.ok) {
-      throw new Error(`Failed to fetch users data: ${usersResponse.status}`);
-    }
-
-    const usersData = await usersResponse.json();
-    const users = usersData.record || {};
-    
-    return users[userId] || null;
-  } catch (error) {
-    console.error('Error fetching user data:', error);
-    throw error;
-  }
-};
-
-const updateUserData = async (userId, updatedUserData) => {
-  if (!jsonbinApiKey || !usersBinId) {
-    throw new Error('JSONBin configuration missing. USERS_BIN and JSONBIN_API_KEY must be set.');
-  }
-
-  try {
-    // First, get all users data
-    const usersResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${usersBinId}/latest`), {
-      method: 'GET',
-      headers: {
-        'X-Master-Key': jsonbinApiKey,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!usersResponse.ok) {
-      throw new Error(`Failed to fetch users data: ${usersResponse.status}`);
-    }
-
-    const usersData = await usersResponse.json();
-    const users = usersData.record || {};
-
-    // Update the specific user
-    users[userId] = updatedUserData;
-
-    // Save updated users data back to JSONBin
-    const updateResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${usersBinId}`), {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': jsonbinApiKey
-      },
-      body: JSON.stringify(users)
-    });
-
-    if (!updateResponse.ok) {
-      throw new Error(`Failed to update user data: ${updateResponse.status}`);
-    }
-
-    console.log(`Updated user data for ${userId}`);
-    return true;
-  } catch (error) {
-    console.error('Error updating user data:', error);
-    throw error;
-  }
-};
-
 const verifyAndCreateUser = async (googleUserId, name, email) => {
   if (!jsonbinApiKey || !usersBinId) {
     throw new Error('JSONBin configuration missing. USERS_BIN and JSONBIN_API_KEY must be set.');
@@ -575,23 +503,36 @@ app.post('/users/projects', async (req, res) => {
       
       // Add project ID to user's owned projects list
       try {
-        const userData = await getUserData(userId);
-        if (userData) {
-          const ownedProjects = userData.ownedProjects || [];
+        const userBinResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${userId}`), {
+          method: 'GET',
+          headers: {
+            'X-Master-Key': process.env.JSONBIN_API_KEY
+          }
+        });
+
+        if (userBinResponse.ok) {
+          const userData = await userBinResponse.json();
+          const ownedProjects = userData.record.ownedProjects || [];
           
           // Add new project ID to the list
           ownedProjects.push(projectId);
           
           // Update user's owned projects list
-          const updatedUserData = {
-            ...userData,
-            ownedProjects: ownedProjects
-          };
-          
-          await updateUserData(userId, updatedUserData);
-          console.log(`Added project ${projectId} to user ${userId}'s owned projects`);
-        } else {
-          console.warn(`User ${userId} not found in centralized users bin`);
+          const updateUserResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${userId}`), {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Master-Key': process.env.JSONBIN_API_KEY
+            },
+            body: JSON.stringify({
+              ...userData.record,
+              ownedProjects: ownedProjects
+            })
+          });
+
+          if (!updateUserResponse.ok) {
+            console.warn('Failed to update user\'s owned projects list, but project was created');
+          }
         }
       } catch (userUpdateError) {
         console.warn('Failed to update user\'s owned projects list:', userUpdateError);
@@ -667,25 +608,40 @@ app.delete('/users/projects/:id', async (req, res) => {
       }
 
       // Remove project from user's owned projects list
-      try {
-        const userData = await getUserData(userId);
-        if (userData) {
-          const ownedProjects = userData.ownedProjects || [];
-          const updatedOwnedProjects = ownedProjects.filter(id => id !== projectId);
-
-          // Update user's owned projects list
-          const updatedUserData = {
-            ...userData,
-            ownedProjects: updatedOwnedProjects
-          };
-          
-          await updateUserData(userId, updatedUserData);
-          console.log(`Removed project ${projectId} from user ${userId}'s owned projects`);
-        } else {
-          console.warn(`User ${userId} not found in centralized users bin`);
+      const userResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${userId}`), {
+        method: 'GET',
+        headers: {
+          'X-Master-Key': process.env.JSONBIN_API_KEY
         }
-      } catch (userUpdateError) {
-        console.error('Failed to update user project list:', userUpdateError);
+      });
+
+      if (!userResponse.ok) {
+        console.error('Failed to fetch user data for project removal');
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Failed to update user project list'
+        });
+      }
+
+      const userData = await userResponse.json();
+      const ownedProjects = userData.record.ownedProjects || [];
+      const updatedOwnedProjects = ownedProjects.filter(id => id !== projectId);
+
+      // Update user's owned projects list
+      const updateUserResponse = await fetch(JSONBIN_CONFIG.getUrl(`/b/${userId}`), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': process.env.JSONBIN_API_KEY
+        },
+        body: JSON.stringify({
+          ...userData.record,
+          ownedProjects: updatedOwnedProjects
+        })
+      });
+
+      if (!updateUserResponse.ok) {
+        console.error('Failed to update user project list');
         return res.status(500).json({ 
           success: false, 
           error: 'Project deleted but failed to update user project list'
@@ -939,12 +895,13 @@ app.get('/api/users/projects', async (req, res) => {
       });
     }
     
-    // Use centralized USERS_BIN to get user data
-    const usersBinUrl = JSONBIN_CONFIG.getUrl(`/b/${usersBinId}/latest`);
+    // Use user ID as bin ID
+    const binId = userId;
+    const jsonbinUrl = JSONBIN_CONFIG.getUrl(`/b/${binId}/latest`);
     
-    console.log(`Fetching user data from centralized USERS_BIN: ${usersBinUrl}`);
+    console.log(`Fetching data from JSONBin.io: ${jsonbinUrl}`);
     
-    const response = await fetch(usersBinUrl, {
+    const response = await fetch(jsonbinUrl, {
       method: 'GET',
       headers: {
         'X-Master-Key': jsonbinApiKey,
@@ -956,18 +913,11 @@ app.get('/api/users/projects', async (req, res) => {
       throw new Error(`JSONBin.io API error: ${response.status} ${response.statusText}`);
     }
     
-    const usersData = await response.json();
-    console.log('Centralized users data received');
+    const binData = await response.json();
+    console.log('JSONBin.io response received');
     
-    // Extract specific user data by userId key
-    const userData = usersData.record[userId];
-    if (!userData) {
-      console.log(`User ${userId} not found in centralized users bin`);
-      return []; // Return empty array if user not found
-    }
-    
-    // Get the array of project IDs from the user data
-    const ownedProjects = userData.ownedProjects || [];
+    // Get the array of project IDs
+    const ownedProjects = binData.record.ownedProjects || [];
     console.log(`Found ${ownedProjects.length} project IDs to fetch`);
     
     // Fetch details for each project

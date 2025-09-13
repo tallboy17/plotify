@@ -79,11 +79,6 @@
             color: #555;
         }
 
-        .header-actions {
-            display: flex;
-            gap: 1rem;
-        }
-
         /* Progress Bar */
         .progress-bar-container {
             position: absolute;
@@ -498,10 +493,7 @@
             <div class="header-divider"></div>
             <div class="header-title">Dashboard</div>
         </div>
-        <div class="header-actions">
-            <button class="btn btn-cta" id="new-project-btn">+ New Project</button>
-            <button class="btn btn-secondary" id="logout-btn">Logout</button>
-        </div>
+        <button class="btn btn-cta" id="new-project-btn">+ New Project</button>
         <div class="progress-bar-container">
             <div class="progress-bar"></div>
         </div>
@@ -1066,12 +1058,6 @@
                         authObject.isTokenValid(); // This will clear expired tokens
                     }
                 }, 5 * 60 * 1000); // 5 minutes
-                
-                // Add logout button event listener
-                document.getElementById('logout-btn').addEventListener('click', () => {
-                    authObject.clearStoredAuth();
-                    window.location.href = '/index.html';
-                });
                 
                 projects = await fetchProjects();
                 // Sort projects by start date, most recent first
