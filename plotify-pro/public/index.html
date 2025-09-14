@@ -399,7 +399,7 @@
                                     localStorage.setItem('subscription', JSON.stringify(userData.subscription));
 
                                     // Redirect to the dashboard
-                                    window.location.href = '/users/projects';
+                                    window.location.href = '/users/projects/';
                                 } else {
                                     throw new Error(data.message || 'Authentication failed');
                                 }

@@ -79,6 +79,11 @@
             color: #555;
         }
 
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
         /* Progress Bar */
         .progress-bar-container {
             position: absolute;
@@ -493,7 +498,10 @@
             <div class="header-divider"></div>
             <div class="header-title">Dashboard</div>
         </div>
-        <button class="btn btn-cta" id="new-project-btn">+ New Project</button>
+        <div class="header-actions">
+            <button class="btn btn-cta" id="new-project-btn">+ New Project</button>
+            <button class="btn btn-secondary" id="logout-btn">Logout</button>
+        </div>
         <div class="progress-bar-container">
             <div class="progress-bar"></div>
         </div>
@@ -588,7 +596,7 @@
                 // Login function - redirects to main page for Google OAuth
                 async login() {
                     console.log('No valid authentication found, redirecting to login page');
-                    window.location.href = '/index.html';
+                    window.location.href = '/';
                     return false;
                 },
                 
@@ -648,7 +656,7 @@
                     // Ensure user is authenticated
                     if (!authObject.isTokenValid()) {
                         console.log('Token invalid or expired, redirecting to login');
-                        window.location.href = '/index.html';
+                        window.location.href = '/';
                         return [];
                     }
                     
@@ -658,7 +666,7 @@
                     if (!response.ok) {
                         if (response.status === 401) {
                             console.log('Unauthorized access, redirecting to login');
-                            window.location.href = '/index.html';
+                            window.location.href = '/';
                             return [];
                         }
                         throw new Error(`API request failed with status ${response.status}`);
@@ -694,7 +702,7 @@
 
                     if (!authObject.isTokenValid()) {
                         console.log('Token invalid or expired, redirecting to login');
-                        window.location.href = '/index.html';
+                        window.location.href = '/';
                         return null;
                     }
 
@@ -745,7 +753,7 @@
 
                     if (!authObject.isTokenValid()) {
                         console.log('Token invalid or expired, redirecting to login');
-                        window.location.href = '/index.html';
+                        window.location.href = '/';
                         return false;
                     }
                     
@@ -785,7 +793,7 @@
 
                     if (!authObject.isTokenValid()) {
                         console.log('Token invalid or expired, redirecting to login');
-                        window.location.href = '/index.html';
+                        window.location.href = '/';
                         return false;
                     }
 
@@ -1058,6 +1066,12 @@
                         authObject.isTokenValid(); // This will clear expired tokens
                     }
                 }, 5 * 60 * 1000); // 5 minutes
+                
+                // Add logout button event listener
+                document.getElementById('logout-btn').addEventListener('click', () => {
+                    authObject.clearStoredAuth();
+                    window.location.href = '/';
+                });
                 
                 projects = await fetchProjects();
                 // Sort projects by start date, most recent first

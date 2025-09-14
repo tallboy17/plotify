@@ -740,7 +740,7 @@
             document.getElementById('logout-btn').addEventListener('click', () => {
                 localStorage.removeItem('jwt_token');
                 localStorage.removeItem('user_id');
-                window.location.href = '/users/projects';
+                window.location.href = '/';
             });
             
             // Set up periodic token validation (every 5 minutes)
@@ -756,7 +756,7 @@
                             localStorage.removeItem('jwt_token');
                             localStorage.removeItem('user_id');
                             alert('Session expired. Please login again.');
-                            window.location.href = '/users/projects';
+                            window.location.href = '/';
                         }
                     } catch (error) {
                         console.error('Error validating token:', error);
@@ -845,7 +845,7 @@
                     const token = localStorage.getItem('jwt_token');
                     if (!token) {
                         alert('Please login first');
-                        window.location.href = '/users/projects';
+                        window.location.href = '/';
                         return;
                     }
                     
@@ -859,7 +859,7 @@
                             localStorage.removeItem('jwt_token');
                             localStorage.removeItem('user_id');
                             alert('Session expired. Please login again.');
-                            window.location.href = '/users/projects';
+                            window.location.href = '/';
                             return;
                         }
                     } catch (error) {
@@ -867,7 +867,7 @@
                         localStorage.removeItem('jwt_token');
                         localStorage.removeItem('user_id');
                         alert('Invalid token. Please login again.');
-                        window.location.href = '/users/projects';
+                        window.location.href = '/';
                         return;
                     }
 
@@ -903,7 +903,7 @@
                                 alert('Session expired. Please login again.');
                                 localStorage.removeItem('jwt_token');
                                 localStorage.removeItem('user_id');
-                                window.location.href = '/users/projects';
+                                window.location.href = '/';
                                 return;
                             }
                             throw new Error(`Failed to load project: ${response.status}`);
@@ -941,6 +941,14 @@
                             }
                         });
                         dataToLoad.plants = cleanedPlants;
+                        
+                        // Ensure nextZoneId is preserved or set to a valid value
+                        if (!dataToLoad.nextZoneId) {
+                            // Calculate nextZoneId based on existing zones
+                            const maxZoneId = dataToLoad.zones.length > 0 ? Math.max(...dataToLoad.zones.map(z => z.id)) : 0;
+                            dataToLoad.nextZoneId = maxZoneId + 1;
+                        }
+                        
                         projectData = dataToLoad;
                     }
 
@@ -962,7 +970,7 @@
                 const token = localStorage.getItem('jwt_token');
                 if (!token) {
                     alert('Please login first');
-                    window.location.href = '/users/projects';
+                    window.location.href = '/';
                     return;
                 }
 
@@ -998,7 +1006,7 @@
                                 alert('Session expired. Please login again.');
                                 localStorage.removeItem('jwt_token');
                                 localStorage.removeItem('user_id');
-                                window.location.href = '/users/projects';
+                                window.location.href = '/';
                                 return;
                             }
                             
