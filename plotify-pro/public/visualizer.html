@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plotify Pro Visualizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c6b4b;
+            --secondary-color: #f4f7f6;
+            --text-color: #333;
+            --light-gray: #dde1e6;
+            --white: #fff;
+            --border-radius: 10px;
+            --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            overflow: hidden; /* Prevent body scroll */
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 80px 1fr 320px;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+            grid-template-areas:
+                "header header header"
+                "tools canvas chat";
+        }
+
+        header {
+            grid-area: header;
+            background: var(--white);
+            padding: 0 2rem;
+            border-bottom: 1px solid var(--light-gray);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--box-shadow);
+            z-index: 10;
+            position: relative;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .logo-icon {
+            font-size: 1.6rem;
+        }
+        .logo-text {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        .project-name {
+            font-weight: 500;
+            color: #555;
+            font-size: 1.2rem;
+            padding-left: 0.75rem;
+            margin-left: 0.25rem;
+            border-left: 2px solid var(--light-gray);
+        }
+
+        header .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .pane {
+            background-color: var(--white);
+            height: calc(100vh - 60px);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tools-pane {
+            grid-area: tools;
+            border-right: 1px solid var(--light-gray);
+            padding: 1.5rem 0.5rem;
+            text-align: center;
+            align-items: center;
+        }
+        .tools-pane h3 {
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+            color: var(--text-color);
+        }
+        .tool-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+        }
+        .tool-btn {
+            background-color: var(--secondary-color);
+            border: 1px solid var(--light-gray);
+            border-radius: var(--border-radius);
+            width: 48px;
+            height: 48px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            color: var(--text-color);
+            transition: all 0.2s ease-in-out;
+        }
+        .tool-btn:hover {
+            background-color: var(--light-gray);
+            border-color: var(--primary-color);
+        }
+        .tool-btn.active {
+            background-color: var(--primary-color);
+            color: var(--white);
+            border-color: var(--primary-color);
+        }
+        
+        .tools-pane.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        /* Canvas Pane (Center) */
+        .canvas-pane {
+            grid-area: canvas;
+            padding: 1.5rem;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            background-color: var(--secondary-color);
+        }
+        #editor-canvas {
+            width: 100%;
+            height: 100%;
+            background-color: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            border: 2px dashed var(--light-gray);
+            cursor: default;
+        }
+
+        #canvas-placeholder {
+            position: absolute;
+            text-align: center;
+            color: #888;
+            pointer-events: none;
+        }
+        #canvas-placeholder-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Floating Action Buttons */
+        #floating-actions {
+            position: absolute;
+            bottom: 2.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 1rem;
+            background-color: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(5px);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            box-shadow: var(--box-shadow);
+            z-index: 5;
+        }
+        .float-btn {
+            background-color: var(--primary-color);
+            color: var(--white);
+            border: none;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .float-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .float-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .float-btn:disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Inline Confirmation */
+        #inline-confirm {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--white);
+            padding: 1.5rem 2rem;
+            border-radius: var(--border-radius);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 20;
+            text-align: center;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        #inline-confirm.hidden {
+            opacity: 0;
+            transform: translate(-50%, -40%);
+            pointer-events: none;
+        }
+        #inline-confirm p {
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+        #inline-confirm button {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin: 0 0.5rem;
+        }
+        #confirm-yes-btn {
+            background-color: #d32f2f;
+            color: white;
+        }
+        #confirm-no-btn {
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            border: 1px solid var(--light-gray);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        /* Chat Pane */
+        .chat-pane {
+            grid-area: chat;
+            border-left: 1px solid var(--light-gray);
+            padding: 0;
+            justify-content: space-between;
+        }
+        .chat-pane h3 {
+             margin: 0;
+             padding: 1rem 1.5rem;
+             font-size: 1.2rem;
+             border-bottom: 1px solid var(--light-gray);
+        }
+        #chat-messages {
+            flex-grow: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .chat-message {
+            padding: 0.75rem 1rem;
+            border-radius: var(--border-radius);
+            max-width: 85%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: var(--primary-color);
+            color: var(--white);
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+        .ai-message {
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+        #chat-form {
+            display: flex;
+            padding: 1rem;
+            border-top: 1px solid var(--light-gray);
+            gap: 0.5rem;
+        }
+        #chat-input {
+            flex-grow: 1;
+            padding: 0.75rem;
+            border: 1px solid var(--light-gray);
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            resize: none;
+        }
+        #send-btn {
+            padding: 0.75rem 1rem;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        #send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        #loading-indicator {
+            text-align: center;
+            padding: 1rem;
+            display: none;
+        }
+
+        /* Error message styling */
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 1rem 1.5rem;
+            border-radius: var(--border-radius);
+            border: 1px solid #ffcdd2;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            z-index: 20;
+            text-align: center;
+            font-weight: 500;
+            max-width: 300px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .error-message.show {
+            opacity: 1;
+        }
+
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+             .app-container {
+                grid-template-columns: 80px 1fr;
+                grid-template-rows: 60px 1fr auto;
+                grid-template-areas:
+                    "header header"
+                    "tools canvas"
+                    "chat chat";
+            }
+             .chat-pane {
+                height: 30vh;
+                border-top: 1px solid var(--light-gray);
+             }
+        }
+        @media (max-width: 900px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 60px auto 1fr auto;
+                height: auto;
+                grid-template-areas:
+                    "header"
+                    "tools"
+                    "canvas"
+                    "chat";
+            }
+            .pane, .tools-pane {
+                 height: auto;
+                 border-right: none;
+                 border-bottom: 1px solid var(--light-gray);
+            }
+            .tools-pane {
+                padding: 0.5rem;
+            }
+            .tools-pane h3 {
+                display: none;
+            }
+            .tool-list {
+                flex-direction: row; 
+                justify-content: center;
+            }
+             .canvas-pane {
+                min-height: 400px;
+            }
+             .chat-pane {
+                height: 40vh;
+             }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <header>
+            <div class="logo-container">
+                <span class="logo-icon">🪴</span>
+                <span class="logo-text">Plotify Pro</span>
+                <a href="#" id="project-link" class="project-name">Project</a>
+                <span class="project-name" id="project-name-display"></span>
+            </div>
+            <input type="hidden" id="project-id" value="">
+            <div class="header-actions">
+                <button class="project-btn" id="logout-btn">Logout</button>
+            </div>
+        </header>
+
+        <aside class="pane tools-pane">
+            <h3>Tools</h3>
+            <div class="tool-list">
+                <button class="tool-btn" id="tool-rectangle" title="Draw Rectangle">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+                </button>
+                <button class="tool-btn" id="tool-oval" title="Draw Oval">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg>
+                </button>
+                <button class="tool-btn" id="tool-triangle" title="Draw Triangle">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                </button>
+                <button class="tool-btn" id="tool-pen" title="Draw Freehand">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                </button>
+                 <button class="tool-btn" id="tool-eraser" title="Delete Shape">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21H7z"/><path d="M22 21H7"/><path d="m5 12 5 5"/></svg>
+                </button>
+            </div>
+        </aside>
+
+        <main class="pane canvas-pane">
+            <input type="file" id="image-upload-input" accept="image/*" class="hidden">
+            <div id="canvas-placeholder">
+                <div id="canvas-placeholder-icon">🏞️</div>
+                <p>Upload a photo of your plot to begin</p>
+            </div>
+            <canvas id="editor-canvas"></canvas>
+            <div id="floating-actions">
+                <button id="upload-btn" class="float-btn" title="Upload Background Image">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </button>
+                <button id="download-btn" class="float-btn" title="Download Image">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
+                <button id="clear-btn" class="float-btn" title="Clear Canvas">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                </button>
+            </div>
+            <div id="inline-confirm" class="hidden">
+                <p>Are you sure you want to clear everything?</p>
+                <button id="confirm-yes-btn">Yes, Clear</button>
+                <button id="confirm-no-btn">No, Cancel</button>
+            </div>
+            <div id="error-message" class="error-message">
+                <p id="error-text">Please select a valid image file (PNG, JPG, or JPEG)</p>
+            </div>
+        </main>
+        
+        <aside class="pane chat-pane">
+            <h3>AI Assistant</h3>
+            <div id="chat-messages">
+                 <!-- Messages will be dynamically inserted here -->
+            </div>
+            <div id="loading-indicator">Processing...</div>
+            <form id="chat-form">
+                <textarea id="chat-input" placeholder="Ask about your design..." rows="1"></textarea>
+                <button id="send-btn" type="submit" title="Send Message">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+            </form>
+        </aside>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM Elements
+            const canvas = document.getElementById('editor-canvas');
+            const ctx = canvas.getContext('2d');
+            const imageUploadInput = document.getElementById('image-upload-input');
+            const uploadBtn = document.getElementById('upload-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const downloadBtn = document.getElementById('download-btn');
+            const canvasPlaceholder = document.getElementById('canvas-placeholder');
+            const inlineConfirm = document.getElementById('inline-confirm');
+            const confirmYesBtn = document.getElementById('confirm-yes-btn');
+            const confirmNoBtn = document.getElementById('confirm-no-btn');
+            const projectLink = document.getElementById('project-link');
+            const projectNameDisplay = document.getElementById('project-name-display');
+            const projectIdInput = document.getElementById('project-id');
+            const logoutBtn = document.getElementById('logout-btn');
+            const errorMessage = document.getElementById('error-message');
+            const errorText = document.getElementById('error-text');
+            const rectangleToolBtn = document.getElementById('tool-rectangle');
+            const ovalToolBtn = document.getElementById('tool-oval');
+            const triangleToolBtn = document.getElementById('tool-triangle');
+            const penToolBtn = document.getElementById('tool-pen');
+            const eraserToolBtn = document.getElementById('tool-eraser');
+            const toolBtns = [rectangleToolBtn, ovalToolBtn, triangleToolBtn, penToolBtn, eraserToolBtn];
+            const toolsPane = document.querySelector('.tools-pane');
+            
+            // Chat UI Elements
+            const chatMessages = document.getElementById('chat-messages');
+            const chatForm = document.getElementById('chat-form');
+            const chatInput = document.getElementById('chat-input');
+            const sendBtn = document.getElementById('send-btn');
+            const loadingIndicator = document.getElementById('loading-indicator');
+
+
+            // --- STATE ---
+            let backgroundImage = null;
+            let activeTool = null; // 'rectangle', 'oval', 'triangle', 'pen', 'eraser'
+            let drawnShapes = []; // { type, points: [{x, y}, ...] }
+            let isDrawing = false;
+            let startMouseX = 0;
+            let startMouseY = 0;
+            let currentMouseX = 0;
+            let currentMouseY = 0;
+            let hoveredShapeIndex = null;
+            let chatHistory = [];
+
+
+            // --- INITIALIZATION ---
+            async function init() {
+                // Extract project ID from URL path /users/projects/:id/visualizer
+                const pathParts = window.location.pathname.split('/');
+                const projectId = pathParts[pathParts.length - 2];
+                
+                projectIdInput.value = projectId;
+                
+                if (projectId) {
+                    projectLink.href = `/users/projects/${projectId}`;
+                    await loadProjectData(projectId);
+                } else {
+                    projectNameDisplay.textContent = 'No Project Loaded';
+                }
+                
+                setupCanvas();
+                setupEventListeners();
+                updateButtonStates();
+                // **CHANGE**: Updated AI Persona
+                addMessageToChat("Hello! I'm Lyra. To get started, use a drawing tool to select an area you'd like to change.", 'ai');
+            }
+
+            async function loadProjectData(projectId) {
+                try {
+                    const token = localStorage.getItem('jwt_token');
+                    if (!token) {
+                        projectNameDisplay.textContent = 'Unnamed Project';
+                        return;
+                    }
+                    
+                    try {
+                        const payload = JSON.parse(atob(token.split('.')[1]));
+                        const currentTime = Math.floor(Date.now() / 1000);
+                        if (payload.exp && payload.exp < currentTime) {
+                             projectNameDisplay.textContent = 'Unnamed Project';
+                             return;
+                        }
+                    } catch (error) {
+                        projectNameDisplay.textContent = 'Unnamed Project';
+                        return;
+                    }
+
+                    const response = await fetch(`/api/users/projects/${projectId}`, {
+                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                             projectNameDisplay.textContent = 'Unnamed Project';
+                             return;
+                        }
+                        throw new Error(`Failed to load project: ${response.status}`);
+                    }
+                    
+                    const projectData = await response.json();
+                    projectNameDisplay.textContent = projectData.project_name || 'Unnamed Project';
+                    
+                } catch (error) {
+                    console.error("Failed to load project data:", error);
+                    projectNameDisplay.textContent = 'Unnamed Project';
+                }
+            }
+
+            function setupCanvas() {
+                const container = canvas.parentElement;
+                const dpi = window.devicePixelRatio || 1;
+                canvas.width = container.clientWidth * dpi;
+                canvas.height = container.clientHeight * dpi;
+                canvas.style.width = `${container.clientWidth}px`;
+                canvas.style.height = `${container.clientHeight}px`;
+                ctx.scale(dpi, dpi);
+            }
+
+            // --- CANVAS DRAWING ---
+            function redrawCanvas() {
+                const canvasWidth = canvas.width / (window.devicePixelRatio || 1);
+                const canvasHeight = canvas.height / (window.devicePixelRatio || 1);
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (backgroundImage) {
+                    canvas.style.border = '2px solid var(--primary-color)';
+                    canvasPlaceholder.classList.add('hidden');
+                    ctx.drawImage(backgroundImage, 0, 0, canvasWidth, canvasHeight);
+                } else {
+                    canvas.style.border = '2px dashed var(--light-gray)';
+                    canvasPlaceholder.classList.remove('hidden');
+                }
+
+                // 1. Draw committed shapes
+                drawnShapes.forEach((shape, index) => {
+                    if (index === hoveredShapeIndex && activeTool === 'eraser') {
+                        ctx.strokeStyle = '#007bff'; 
+                        ctx.lineWidth = 5;
+                    } else {
+                        ctx.strokeStyle = 'red';
+                        ctx.lineWidth = 3;
+                    }
+
+                    ctx.beginPath();
+                    if (shape.type === 'rectangle' || shape.type === 'oval' || shape.type === 'triangle') {
+                        const [start, end] = shape.points;
+                        if (shape.type === 'rectangle') {
+                            ctx.rect(start.x, start.y, end.x - start.x, end.y - start.y);
+                        } else if (shape.type === 'oval') {
+                            const width = end.x - start.x;
+                            const height = end.y - start.y;
+                            ctx.ellipse(start.x + width / 2, start.y + height / 2, Math.abs(width / 2), Math.abs(height / 2), 0, 0, 2 * Math.PI);
+                        } else if (shape.type === 'triangle') {
+                            ctx.moveTo(start.x + (end.x - start.x) / 2, start.y);
+                            ctx.lineTo(end.x, end.y);
+                            ctx.lineTo(start.x, end.y);
+                            ctx.closePath();
+                        }
+                    } else if (shape.type === 'pen' && shape.points.length > 1) {
+                         ctx.moveTo(shape.points[0].x, shape.points[0].y);
+                        for (let i = 1; i < shape.points.length; i++) {
+                            ctx.lineTo(shape.points[i].x, shape.points[i].y);
+                        }
+                    }
+                    ctx.stroke();
+                });
+
+                // 2. Draw preview of shape if currently drawing
+                if (isDrawing && activeTool && activeTool !== 'eraser' && activeTool !== 'pen') {
+                    ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([6, 6]); 
+                    ctx.beginPath();
+                    
+                    if (activeTool === 'rectangle') {
+                        ctx.rect(startMouseX, startMouseY, currentMouseX - startMouseX, currentMouseY - startMouseY);
+                    } else if (activeTool === 'oval') {
+                        const width = currentMouseX - startMouseX;
+                        const height = currentMouseY - startMouseY;
+                        ctx.ellipse(startMouseX + width / 2, startMouseY + height / 2, Math.abs(width / 2), Math.abs(height / 2), 0, 0, 2 * Math.PI);
+                    } else if (activeTool === 'triangle') {
+                        ctx.moveTo(startMouseX + (currentMouseX - startMouseX) / 2, startMouseY);
+                        ctx.lineTo(currentMouseX, currentMouseY);
+                        ctx.lineTo(startMouseX, currentMouseY);
+                        ctx.closePath();
+                    }
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+
+            // --- HELPER FUNCTIONS ---
+            function showError(message) {
+                errorText.textContent = message;
+                errorMessage.classList.add('show');
+                setTimeout(() => {
+                    errorMessage.classList.remove('show');
+                }, 3000);
+            }
+
+            function isValidImageFile(file) {
+                const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+                return allowedTypes.includes(file.type);
+            }
+            
+            function getBackgroundImageAsBase64() {
+                if (!backgroundImage) return null;
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                // Use the natural dimensions of the image for the highest quality
+                tempCanvas.width = backgroundImage.naturalWidth;
+                tempCanvas.height = backgroundImage.naturalHeight;
+                tempCtx.drawImage(backgroundImage, 0, 0);
+                return tempCanvas.toDataURL('image/jpeg').split(',')[1];
+            }
+
+            function getShapeAtPosition(x, y) {
+                const dpi = window.devicePixelRatio || 1;
+                for (let i = drawnShapes.length - 1; i >= 0; i--) {
+                    const shape = drawnShapes[i];
+                    ctx.beginPath();
+                     if (shape.type === 'rectangle' || shape.type === 'oval' || shape.type === 'triangle') {
+                        const [start, end] = shape.points;
+                        if (shape.type === 'rectangle') {
+                            ctx.rect(start.x, start.y, end.x - start.x, end.y - start.y);
+                        } else if (shape.type === 'oval') {
+                            const width = end.x - start.x;
+                            const height = end.y - start.y;
+                            ctx.ellipse(start.x + width / 2, start.y + height / 2, Math.abs(width / 2), Math.abs(height / 2), 0, 0, 2 * Math.PI);
+                        } else if (shape.type === 'triangle') {
+                            ctx.moveTo(start.x + (end.x - start.x) / 2, start.y);
+                            ctx.lineTo(end.x, end.y);
+                            ctx.lineTo(start.x, end.y);
+                            ctx.closePath();
+                        }
+                    } else if (shape.type === 'pen' && shape.points.length > 1) {
+                        ctx.moveTo(shape.points[0].x, shape.points[0].y);
+                        for (let j = 1; j < shape.points.length; j++) {
+                            ctx.lineTo(shape.points[j].x, shape.points[j].y);
+                        }
+                    }
+                    ctx.lineWidth = 10;
+                    if (ctx.isPointInStroke(x * dpi, y * dpi)) {
+                        return i;
+                    }
+                }
+                return null;
+            }
+
+            function setActiveTool(tool) {
+                if (activeTool === tool) {
+                    activeTool = null;
+                } else {
+                    activeTool = tool;
+                }
+                
+                toolBtns.forEach(btn => {
+                    btn.classList.toggle('active', btn.id === `tool-${activeTool}`);
+                });
+
+                if (activeTool && activeTool !== 'eraser') {
+                    canvas.style.cursor = 'crosshair';
+                } else {
+                    canvas.style.cursor = 'default';
+                }
+            }
+
+            function updateButtonStates() {
+                const hasImage = backgroundImage !== null;
+                downloadBtn.disabled = !hasImage;
+                clearBtn.disabled = !hasImage;
+                sendBtn.disabled = !hasImage;
+
+                if (hasImage) {
+                    toolsPane.classList.remove('disabled');
+                } else {
+                    toolsPane.classList.add('disabled');
+                    if (activeTool) {
+                        setActiveTool(activeTool);
+                    }
+                }
+            }
+
+            // --- EVENT HANDLERS ---
+            function handleImageUpload(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    if (!isValidImageFile(file)) {
+                        showError('Please select a valid image file (PNG, JPG, or JPEG)');
+                        event.target.value = '';
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            backgroundImage = img;
+                            redrawCanvas();
+                            updateButtonStates();
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+            
+            function handleDownload() {
+                 const base64Data = getBackgroundImageAsBase64();
+                 if (!base64Data) return;
+                 const link = document.createElement('a');
+                 link.download = 'plotify-design.png';
+                 link.href = `data:image/jpeg;base64,${base64Data}`;
+                 link.click();
+            }
+            
+            function handleMouseDown(event) {
+                if (!backgroundImage) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                
+                 if (activeTool === 'eraser' && hoveredShapeIndex !== null) {
+                    drawnShapes.splice(hoveredShapeIndex, 1);
+                    hoveredShapeIndex = null;
+                    redrawCanvas();
+                    return;
+                }
+                
+                if (activeTool && activeTool !== 'eraser') {
+                    isDrawing = true;
+                    startMouseX = x;
+                    startMouseY = y;
+                    currentMouseX = x;
+                    currentMouseY = y;
+
+                    if (activeTool === 'pen') {
+                        drawnShapes.push({ type: 'pen', points: [{x, y}] });
+                    }
+                }
+            }
+
+            function handleMouseUp(event) {
+                if (isDrawing && activeTool && activeTool !== 'eraser') {
+                    const rect = canvas.getBoundingClientRect();
+                    const endX = event.clientX - rect.left;
+                    const endY = event.clientY - rect.top;
+                    
+                    // Only add the shape if it has a noticeable size
+                    if (Math.abs(startMouseX - endX) > 5 || Math.abs(startMouseY - endY) > 5) {
+                        if (activeTool !== 'pen') {
+                             drawnShapes.push({
+                                type: activeTool,
+                                points: [{x: startMouseX, y: startMouseY}, {x: endX, y: endY}]
+                            });
+                        }
+                        // For pen tool, the shape is already being pushed in mousedown/mousemove
+                        addMessageToChat(`Great, you've selected an area. Now, tell me what you'd like to do in that space. For example: "Add a Japanese Maple tree".`, 'ai');
+                    } else if (activeTool !== 'pen') {
+                        // If it's just a click, don't add a shape
+                        isDrawing = false;
+                        redrawCanvas(); // Redraw to remove the drawing preview
+                        return;
+                    }
+                }
+                isDrawing = false;
+                redrawCanvas();
+            }
+            
+            function handleMouseMove(event) {
+                if (!backgroundImage) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                
+                currentMouseX = x;
+                currentMouseY = y;
+
+                if (isDrawing && activeTool) {
+                    if (activeTool === 'pen') {
+                        drawnShapes[drawnShapes.length - 1].points.push({x, y});
+                    }
+                    redrawCanvas();
+                    return;
+                }
+
+                if (activeTool === 'eraser') {
+                    const newHoveredIndex = getShapeAtPosition(x, y);
+                    if (newHoveredIndex !== hoveredShapeIndex) {
+                        hoveredShapeIndex = newHoveredIndex;
+                        redrawCanvas();
+                    }
+                    canvas.style.cursor = hoveredShapeIndex !== null ? 'pointer' : 'default';
+                } else if (hoveredShapeIndex !== null) {
+                    hoveredShapeIndex = null;
+                    redrawCanvas();
+                }
+            }
+
+            function showClearConfirmation() {
+                inlineConfirm.classList.remove('hidden');
+            }
+            
+            function performClear() {
+                drawnShapes = [];
+                backgroundImage = null;
+                redrawCanvas();
+                inlineConfirm.classList.add('hidden');
+                updateButtonStates();
+            }
+            
+             // --- CHAT FUNCTIONS ---
+
+            function addMessageToChat(text, role) {
+                chatHistory.push({ role: role === 'user' ? 'user' : 'model', parts: [{ text }] });
+                updateChatUI();
+            }
+
+            function updateChatUI() {
+                chatMessages.innerHTML = '';
+                chatHistory.forEach(msg => {
+                    const messageEl = document.createElement('div');
+                    messageEl.textContent = msg.parts[0].text;
+                    messageEl.className = msg.role === 'user' ? 'chat-message user-message' : 'chat-message ai-message';
+                    chatMessages.appendChild(messageEl);
+                });
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            async function handleChatSubmit(e) {
+                e.preventDefault();
+                const prompt = chatInput.value.trim();
+                if (!prompt) return;
+
+                if (!backgroundImage) {
+                    addMessageToChat("Please upload an image before making a request.", 'ai');
+                    return;
+                }
+                // **CHANGE**: Validate that a shape has been drawn
+                if (drawnShapes.length === 0) {
+                    addMessageToChat("Please use a drawing tool to select an area on the image first.", 'ai');
+                    return;
+                }
+
+                chatInput.value = '';
+                addMessageToChat(prompt, 'user');
+                
+                loadingIndicator.style.display = 'block';
+                sendBtn.disabled = true;
+
+                try {
+                    // We'll use the most recently drawn shape for the visualization
+                    await getVisualization(prompt, drawnShapes[drawnShapes.length - 1]);
+                } catch (error) {
+                    // **CHANGE**: Display the specific error from the backend
+                    addMessageToChat(error.message, 'ai');
+                    console.error('Visualization Error:', error);
+                } finally {
+                    loadingIndicator.style.display = 'none';
+                    sendBtn.disabled = false;
+                }
+            }
+
+            async function getVisualization(prompt, shape) {
+                const imageData = getBackgroundImageAsBase64();
+                if (!imageData) {
+                    throw new Error("Could not read the background image.");
+                }
+            
+                const payload = {
+                    backgroundImage: imageData,
+                    shape: shape,
+                    prompt: prompt
+                };
+            
+                // **CHANGE**: Add timeout logic using AbortController
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds
+            
+                try {
+                    const response = await fetch('/api/visualizer/visualize', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                        signal: controller.signal
+                    });
+            
+                    clearTimeout(timeoutId);
+            
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({
+                            error: `The server responded with status ${response.status}. Please try again.`
+                        }));
+                        throw new Error(errorData.error);
+                    }
+            
+                    const result = await response.json();
+                    const newImageBase64 = result.image;
+            
+                    if (newImageBase64) {
+                        const img = new Image();
+                        img.onload = () => {
+                            backgroundImage = img;
+                            drawnShapes = []; // Clear the temporary drawing
+                            redrawCanvas();
+                        };
+                        img.src = `data:image/jpeg;base64,${newImageBase64}`;
+                    } else {
+                        throw new Error("The backend did not return a valid image.");
+                    }
+                } catch (error) {
+                    clearTimeout(timeoutId);
+                    if (error.name === 'AbortError') {
+                        throw new Error('The request timed out after 60 seconds as the server is busy. Please try again.');
+                    }
+                    throw error; // Re-throw other errors
+                }
+            }
+
+
+            // --- EVENT LISTENERS ---
+            function setupEventListeners() {
+                logoutBtn.addEventListener('click', () => {
+                    localStorage.removeItem('jwt_token');
+                    localStorage.removeItem('user_id');
+                    window.location.href = '/';
+                });
+                window.addEventListener('resize', () => {
+                    setupCanvas();
+                    redrawCanvas();
+                });
+                uploadBtn.addEventListener('click', () => imageUploadInput.click());
+                imageUploadInput.addEventListener('change', handleImageUpload);
+                clearBtn.addEventListener('click', showClearConfirmation);
+                downloadBtn.addEventListener('click', handleDownload);
+                confirmYesBtn.addEventListener('click', performClear);
+                confirmNoBtn.addEventListener('click', () => inlineConfirm.classList.add('hidden'));
+
+                rectangleToolBtn.addEventListener('click', () => setActiveTool('rectangle'));
+                ovalToolBtn.addEventListener('click', () => setActiveTool('oval'));
+                triangleToolBtn.addEventListener('click', () => setActiveTool('triangle'));
+                penToolBtn.addEventListener('click', () => setActiveTool('pen'));
+                eraserToolBtn.addEventListener('click', () => setActiveTool('eraser'));
+
+
+                canvas.addEventListener('mousedown', handleMouseDown);
+                canvas.addEventListener('mouseup', handleMouseUp);
+                canvas.addEventListener('mousemove', handleMouseMove);
+                canvas.addEventListener('mouseleave', () => {
+                    isDrawing = false;
+                    if (hoveredShapeIndex !== null) {
+                        hoveredShapeIndex = null;
+                        redrawCanvas();
+                    }
+                });
+                
+                // Chat listeners
+                chatForm.addEventListener('submit', handleChatSubmit);
+                chatInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        chatForm.requestSubmit();
+                    }
+                });
+            }
+
+            // --- START THE APP ---
+            init();
+        });
+    </script>
+</body>
+</html>
+

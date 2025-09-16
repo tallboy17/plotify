@@ -459,7 +459,7 @@
             font-size: 0.85rem;
             font-weight: 600;
         }
-        .share-btn, .save-btn, .download-btn {
+        .share-btn, .save-btn, .download-btn, .visualizer-btn {
              background-color: #4285F4;
              color: white;
         }
@@ -661,6 +661,7 @@
             </div>
             <input type="hidden" id="project-id" value="">
             <div class="header-actions">
+                <button class="project-btn visualizer-btn" id="visualizer-btn">Visualizer</button>
                 <button class="project-btn download-btn" id="download-project-btn">Download Project</button>
                 <button class="project-btn save-btn" id="save-project-btn">Save Project</button>
                 <button class="project-btn share-btn" id="share-project-btn">Share Project</button>
@@ -1478,6 +1479,14 @@
                 if(targetId === 'share-project-btn') generateShareUrl();
                 if(targetId === 'save-project-btn') saveProjectToBackend();
                 if(targetId === 'download-project-btn') downloadProjectAsCSV();
+                if(targetId === 'visualizer-btn') {
+                    const projectId = projectIdInput.value;
+                    if (projectId) {
+                        window.location.href = `/users/projects/${projectId}/visualizer`;
+                    } else {
+                        alert('No project loaded. Please select a project first.');
+                    }
+                }
 
                 if (targetId === 'back-to-project-btn') {
                     selectedPlantId = null;

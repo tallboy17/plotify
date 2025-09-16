@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const admin = require('firebase-admin');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { loadEngine } = require("./plantQueryEngine");
+const Jimp = require('jimp');
 
 
 
@@ -14,6 +15,8 @@ const PORT = process.env.PORT || 3000;
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const systemPrompt = process.env.SYSTEM_PROMPT;
 const geminiModel = process.env.GEMINI_MODEL;
+const visualizerGeminiModel = process.env.VISUALIZER_GEMINI_MODEL;
+const GeminiVisionModel = process.env.VISUALIZER_GEMINI_VISON_MODEL;
 const jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
 const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '24h';
 const serviceAccountKey = process.env.SERVICE_ACCOUNT_KEY;
@@ -38,6 +41,7 @@ if (!geminiApiKey || !geminiModel) {
   process.exit(1);
 }
 
+
 // Check for JSONBin.io API key (optional for projects endpoint)
 const jsonbinApiKey = process.env.JSONBIN_API_KEY;
 if (!jsonbinApiKey) {
@@ -51,12 +55,14 @@ if (!usersBinId) {
 }
 const genAI = new GoogleGenerativeAI(geminiApiKey);
 const model = genAI.getGenerativeModel({ model: geminiModel });
+const visualizerModel = visualizerGeminiModel ? genAI.getGenerativeModel({ model: visualizerGeminiModel }) : null;
+const imageModel = genAI.getGenerativeModel({ model: visualizerGeminiModel }); 
 
 // Load the engine once at startup
 const engine = loadEngine("./data/plants.json");
 
 // --- Middleware ---
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public')); // Serve static files from public directory
 
 
@@ -498,6 +504,13 @@ app.get('/users/projects/:id', (req, res) => {
   const projectId = req.params.id;
   console.log(`Serving project page for project ID: ${projectId}`);
   res.sendFile('project.html', { root: 'public' });
+});
+
+// --- Visualizer Endpoint ---
+app.get('/users/projects/:id/visualizer', (req, res) => {
+  const projectId = req.params.id;
+  console.log(`Serving visualizer page for project ID: ${projectId}`);
+  res.sendFile('visualizer.html', { root: 'public' });
 });
 
 // --- Create Project Endpoint ---
@@ -1064,6 +1077,7 @@ app.post('/search', async (req, res) => {
   }
 });
 
+
 // New query endpoint
 app.get("/q", (req, res) => {
   const { q, plant_id, family, plant_type, scientific_name, limit, offset } = req.query;
@@ -1082,6 +1096,115 @@ app.get("/q", (req, res) => {
   });
 
   res.json({ count: results.length, results });
+});
+
+//visualizer
+
+app.post('/api/visualizer/visualize', async (req, res) => {
+  console.log("Received a request to /api/visualizer/visualize");
+  try {
+    // 1. --- Validate Request Body ---
+    const { backgroundImage, shape, prompt } = req.body;
+    if (!backgroundImage || !shape || !prompt) {
+      console.error("Validation failed: Missing required fields.");
+      return res.status(400).json({ error: 'Missing required fields: backgroundImage, shape, and prompt.' });
+    }
+
+    // 2. --- Create the Mask Image ---
+    console.log("Step 1: Creating mask from shape data.");
+    let originalImage;
+    try {
+        const imageBuffer = Buffer.from(backgroundImage, 'base64');
+        originalImage = await Jimp.read(imageBuffer);
+    } catch (jimpError) {
+        console.error("FATAL: Jimp failed to read the image buffer.", jimpError);
+        throw new Error("Failed to process the uploaded image. It might be corrupt or in an unsupported format.");
+    }
+
+    const { width, height } = originalImage.bitmap;
+
+    const mask = new Jimp(width, height, 'black');
+    const white = Jimp.rgbaToInt(255, 255, 255, 255);
+
+    if (shape.type === 'rectangle') {
+      const [start, end] = shape.points;
+      const x = Math.min(start.x, end.x);
+      const y = Math.min(start.y, end.y);
+      const w = Math.abs(start.x - end.x);
+      const h = Math.abs(start.y - end.y);
+      
+      mask.scan(x, y, w, h, function(px, py, idx) {
+        this.bitmap.data[idx + 0] = 255;
+        this.bitmap.data[idx + 1] = 255;
+        this.bitmap.data[idx + 2] = 255;
+        this.bitmap.data[idx + 3] = 255;
+      });
+    } else {
+        console.warn(`Mask generation for shape type "${shape.type}" is not yet implemented.`);
+    }
+
+    const maskBuffer = await mask.getBufferAsync(Jimp.MIME_PNG);
+    console.log("Step 1 Complete: Mask image generated.");
+
+    // 3. --- Engineer the Prompt for the Image Model ---
+    console.log("Step 2: Engineering prompt for the image model.");
+    const engineeredPrompt = `
+      You are an expert landscape visualization AI. Your task is to edit an image based on a user's request using an original image and a mask.
+      The mask image indicates the ONLY area you are allowed to change. White on the mask is the editable area; black is protected.
+      Your output must be a new image.
+      Modify the original image, ONLY in the area defined by the white part of the mask, to achieve the user's goal.
+      The result must be photorealistic and seamlessly blended with the original image's lighting, shadows, and perspective.
+      
+      User's request: "${prompt}"
+    `;
+
+    // 4. --- Call the Gemini Image API ---
+    console.log("Step 3: Calling Gemini Image API to generate the visualization.");
+    const imageParts = [
+      { inlineData: { mimeType: 'image/jpeg', data: backgroundImage } },
+      { inlineData: { mimeType: 'image/png', data: maskBuffer.toString('base64') } },
+    ];
+
+    const result = await imageModel.generateContent([engineeredPrompt, ...imageParts]);
+    const response = result.response;
+    
+    // 5. --- Extract the New Image from the Response ---
+    const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData && p.inlineData.mimeType.startsWith('image/'));
+
+    if (!imagePart) {
+        console.error("API Error: No image was returned from the model.");
+        // This could happen if the model's safety settings are triggered.
+        const feedback = response.promptFeedback;
+        const blockReason = feedback?.blockReason;
+        const safetyRatings = feedback?.safetyRatings;
+        let errorMessage = "The AI model did not return an image. This could be due to safety filters or an unclear prompt. Please try a different request.";
+        if(blockReason) {
+            errorMessage += ` Reason: ${blockReason}.`;
+        }
+        throw new Error(errorMessage);
+    }
+
+    const newImageBase64 = imagePart.inlineData.data;
+    console.log("Step 3 Complete. Received new image from the API.");
+    
+    // 6. --- Send Response to Frontend ---
+    res.status(200).json({
+      image: newImageBase64 
+    });
+
+  } catch (error) {
+    console.error('Error in /api/visualizer/visualize:', error);
+
+    // Check if this is a specific 500 error from the Google API
+    if (error.message && error.message.includes('500 Internal Server Error')) {
+      return res.status(503).json({ 
+        error: 'The AI service is temporarily unavailable. This is usually a transient issue. Please try your request again in a moment.' 
+      });
+    }
+
+    // For other errors, including our custom ones, send a 500 status
+    res.status(500).json({ error: error.message || 'An internal server error occurred. Check server logs for details.' });
+  }
 });
 
 // --- Start the Server ---
