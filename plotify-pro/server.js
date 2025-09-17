@@ -1100,110 +1100,196 @@ app.get("/q", (req, res) => {
 
 //visualizer
 
-app.post('/api/visualizer/visualize', async (req, res) => {
-  console.log("Received a request to /api/visualizer/visualize");
+app.post('/api/visualizer/analyze', async (req, res) => {
   try {
-    // 1. --- Validate Request Body ---
-    const { backgroundImage, shape, prompt } = req.body;
-    if (!backgroundImage || !shape || !prompt) {
-      console.error("Validation failed: Missing required fields.");
-      return res.status(400).json({ error: 'Missing required fields: backgroundImage, shape, and prompt.' });
-    }
+      const { backgroundImage } = req.body;
+      if (!backgroundImage) {
+          return res.status(400).json({ error: 'Missing required field: backgroundImage.' });
+      }
 
-    // 2. --- Create the Mask Image ---
-    console.log("Step 1: Creating mask from shape data.");
-    let originalImage;
-    try {
-        const imageBuffer = Buffer.from(backgroundImage, 'base64');
-        originalImage = await Jimp.read(imageBuffer);
-    } catch (jimpError) {
-        console.error("FATAL: Jimp failed to read the image buffer.", jimpError);
-        throw new Error("Failed to process the uploaded image. It might be corrupt or in an unsupported format.");
-    }
+      const analysisPrompt = `You are an expert landscape and scene analysis AI. Your task is to analyze the provided image and determine if it depicts a typical US residential yard. You must also identify specific landscape objects.
 
-    const { width, height } = originalImage.bitmap;
+      Respond ONLY with a valid JSON object following this exact schema. Do not include any other text, explanations, or markdown formatting.
 
-    const mask = new Jimp(width, height, 'black');
-    const white = Jimp.rgbaToInt(255, 255, 255, 255);
-
-    if (shape.type === 'rectangle') {
-      const [start, end] = shape.points;
-      const x = Math.min(start.x, end.x);
-      const y = Math.min(start.y, end.y);
-      const w = Math.abs(start.x - end.x);
-      const h = Math.abs(start.y - end.y);
+      {
+        "isTypicalUSResidentialYard": "yes" | "no",
+        "yardType": "front" | "back" | "side" | "unknown",
+        "confidenceScore": number (0.0 to 1.0),
+        "detectedObjects": [
+          {
+            "objectType": "Lawn Area",
+            "description": "A brief description of the lawn area and its condition.",
+            "isPresent": boolean
+          },
+          {
+            "objectType": "Brick Planter",
+            "description": "A brief description of any planters made of brick.",
+            "isPresent": boolean
+          },
+          {
+            "objectType": "Wooden Planter",
+            "description": "A brief description of any planters made of wood.",
+            "isPresent": boolean
+          }
+        ]
+      }
       
-      mask.scan(x, y, w, h, function(px, py, idx) {
-        this.bitmap.data[idx + 0] = 255;
-        this.bitmap.data[idx + 1] = 255;
-        this.bitmap.data[idx + 2] = 255;
-        this.bitmap.data[idx + 3] = 255;
+      Analysis Guidelines:
+      - A typical US residential yard features elements like a single-family home, grass, trees, walkways, driveways, or fences.
+      - IMPORTANT: Focus your analysis on the primary foreground and mid-ground elements. Ignore items that are in the distant background or significantly cut off at the edges of the photo.
+      - "isTypicalUSResidentialYard" must be either "yes" or "no".
+      - If you detect a lawn, set "isPresent" to true for "Lawn Area".
+      - If you detect a planter made of bricks, set "isPresent" to true for "Brick Planter".
+      - If you detect a planter made of wood, set "isPresent" to true for "Wooden Planter".
+      - If an object is not present, its "isPresent" value must be false.
+      - Base your confidence score on how clearly the scene matches a typical residential setting.`;
+
+      const result = await model.generateContent([
+          analysisPrompt,
+          { inlineData: { mimeType: 'image/jpeg', data: backgroundImage } }
+      ]);
+      
+      const responseText = await result.response.text();
+      
+      let cleanedText = responseText.trim();
+      if (cleanedText.startsWith("```json")) {
+          cleanedText = cleanedText.substring(7, cleanedText.length - 3).trim();
+      } else if (cleanedText.startsWith("```")) {
+          cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
+      }
+      
+      const jsonResponse = JSON.parse(cleanedText);
+
+      let detectedItems = [];
+      jsonResponse.detectedObjects.forEach(obj => {
+          if (obj.isPresent) {
+              detectedItems.push(obj.objectType.toLowerCase());
+          }
       });
-    } else {
-        console.warn(`Mask generation for shape type "${shape.type}" is not yet implemented.`);
-    }
 
-    const maskBuffer = await mask.getBufferAsync(Jimp.MIME_PNG);
-    console.log("Step 1 Complete: Mask image generated.");
+      let textBlob = "";
+      if (jsonResponse.isTypicalUSResidentialYard === 'yes') {
+          textBlob = `This looks like a great photo of a residential ${jsonResponse.yardType} yard. `;
+          if (detectedItems.length > 0) {
+              const features = detectedItems.join(' and ');
+              textBlob += `I've identified ${features}. What would you like to change?`;
+          } else {
+              textBlob += "I'm ready for your instructions on how to transform the space!";
+          }
+      } else {
+          textBlob = "I've analyzed the photo. While it doesn't look like a typical residential yard, I'm still ready to help you visualize changes. What would you like to do?";
+      }
 
-    // 3. --- Engineer the Prompt for the Image Model ---
-    console.log("Step 2: Engineering prompt for the image model.");
-    const engineeredPrompt = `
-      You are an expert landscape visualization AI. Your task is to edit an image based on a user's request using an original image and a mask.
-      The mask image indicates the ONLY area you are allowed to change. White on the mask is the editable area; black is protected.
-      Your output must be a new image.
-      Modify the original image, ONLY in the area defined by the white part of the mask, to achieve the user's goal.
-      The result must be photorealistic and seamlessly blended with the original image's lighting, shadows, and perspective.
-      
-      User's request: "${prompt}"
-    `;
+      jsonResponse.textBlob = textBlob;
 
-    // 4. --- Call the Gemini Image API ---
-    console.log("Step 3: Calling Gemini Image API to generate the visualization.");
-    const imageParts = [
-      { inlineData: { mimeType: 'image/jpeg', data: backgroundImage } },
-      { inlineData: { mimeType: 'image/png', data: maskBuffer.toString('base64') } },
-    ];
-
-    const result = await imageModel.generateContent([engineeredPrompt, ...imageParts]);
-    const response = result.response;
-    
-    // 5. --- Extract the New Image from the Response ---
-    const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData && p.inlineData.mimeType.startsWith('image/'));
-
-    if (!imagePart) {
-        console.error("API Error: No image was returned from the model.");
-        // This could happen if the model's safety settings are triggered.
-        const feedback = response.promptFeedback;
-        const blockReason = feedback?.blockReason;
-        const safetyRatings = feedback?.safetyRatings;
-        let errorMessage = "The AI model did not return an image. This could be due to safety filters or an unclear prompt. Please try a different request.";
-        if(blockReason) {
-            errorMessage += ` Reason: ${blockReason}.`;
-        }
-        throw new Error(errorMessage);
-    }
-
-    const newImageBase64 = imagePart.inlineData.data;
-    console.log("Step 3 Complete. Received new image from the API.");
-    
-    // 6. --- Send Response to Frontend ---
-    res.status(200).json({
-      image: newImageBase64 
-    });
+      res.json(jsonResponse);
 
   } catch (error) {
-    console.error('Error in /api/visualizer/visualize:', error);
+      console.error('Error during image analysis:', error);
+      res.status(500).json({ error: 'Failed to analyze the image.' });
+  }
+});
 
-    // Check if this is a specific 500 error from the Google API
-    if (error.message && error.message.includes('500 Internal Server Error')) {
-      return res.status(503).json({ 
-        error: 'The AI service is temporarily unavailable. This is usually a transient issue. Please try your request again in a moment.' 
-      });
-    }
+// Endpoint to Understand User Intent
+app.post('/api/visualizer/understand-intent', async (req, res) => {
+  try {
+      const { userCommand, analysisData } = req.body;
+      if (!userCommand || !analysisData) {
+          return res.status(400).json({ error: 'Missing required fields: userCommand and analysisData.' });
+      }
 
-    // For other errors, including our custom ones, send a 500 status
-    res.status(500).json({ error: error.message || 'An internal server error occurred. Check server logs for details.' });
+      const intentPrompt = `You are a "mission planner" AI for a landscape design visualizer. Your job is to interpret a user's command based on a prior analysis of their photo.
+
+      **Input:**
+      1.  **User Command:** "${userCommand}"
+      2.  **Photo Analysis Data:** ${JSON.stringify(analysisData.detectedObjects)}
+
+      **Your Task:**
+      Analyze the user's command and the available objects to create a clear, actionable plan. Respond ONLY with a valid JSON object following this schema:
+
+      {
+        "action": "add" | "remove" | "replace" | "clarify" | "unknown",
+        "target": string (e.g., "Lawn Area", "Brick Planter", "weeds"),
+        "isActionable": boolean,
+        "confirmationMessage": "A friendly, user-facing message confirming the plan or asking for clarification.",
+        "finalPrompt": "A concise, machine-facing prompt for the image generation model. This should be null if the action is not actionable."
+      }
+
+      **Logic Guidelines:**
+      - If the user's command is clear and the target object exists (e.g., "remove lawn" and a lawn is present), set "isActionable" to true. The confirmation message should state the plan, and the finalPrompt should be a direct command.
+      - If the user's command is clear but the target object is NOT present (e.g., "remove lawn" but no lawn was detected), set "isActionable" to false. The confirmation message should explain the problem.
+      - If the user's command is ambiguous (e.g., "change the planter" when multiple planters exist), set "isActionable" to false, "action" to "clarify", and ask for more detail in the confirmation message.
+      - For a simple "remove" command, the finalPrompt should specify a realistic replacement (e.g., "remove the lawn and replace it with dark topsoil and mulch").
+      `;
+
+      const result = await model.generateContent([intentPrompt]);
+      const responseText = await result.response.text();
+
+      let cleanedText = responseText.trim();
+      if (cleanedText.startsWith("```json")) {
+          cleanedText = cleanedText.substring(7, cleanedText.length - 3).trim();
+      } else if (cleanedText.startsWith("```")) {
+          cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
+      }
+      
+      const jsonResponse = JSON.parse(cleanedText);
+      res.json(jsonResponse);
+
+  } catch (error) {
+      console.error('Error during intent understanding:', error);
+      res.status(500).json({ error: 'Failed to understand the command.' });
+  }
+});
+
+
+app.post('/api/visualizer/visualize', async (req, res) => {
+  try {
+      
+      const { backgroundImage, prompt: userPrompt } = req.body;
+      
+
+      if (!backgroundImage || !userPrompt) {
+          return res.status(400).json({ error: 'Missing required fields: backgroundImage and prompt are required.' });
+      }
+
+      const fullPrompt = `TASK: Photorealistic Image Editing.
+
+      USER REQUEST: "${userPrompt}"
+      
+      INSTRUCTIONS:
+      1.  Modify the provided background image based on the USER REQUEST.
+      2.  Apply changes to the entire image as appropriate.
+      3.  CRITICAL RULE: Changes must only affect plantable surfaces (soil, mulch, grass). Do NOT alter hardscape (concrete, pavement, stone, buildings). Hardscape must remain untouched.
+      4.  The final image must be seamlessly blended, matching the original lighting, shadows, and perspective.
+      
+      OUTPUT: Return ONLY the modified image. Do not include any text, commentary, or refusal.`;
+
+      const contentParts = [
+          fullPrompt,
+          { inlineData: { mimeType: 'image/jpeg', data: backgroundImage } }
+      ];
+
+      console.log("Received visualize request with body:", JSON.stringify(fullPrompt));
+
+      const result = await model.generateContent(contentParts);
+
+      const response = await result.response;
+      const generatedPart = response.candidates[0].content.parts.find(p => p.inlineData);
+
+      if (generatedPart) {
+          res.json({ image: generatedPart.inlineData.data });
+      } else {
+          const textResponse = response.candidates[0]?.content?.parts?.[0]?.text || "No text response found.";
+          console.error("AI returned a text response instead of an image:", textResponse);
+          throw new Error(`The AI refused the request. Reason: "${textResponse}"`);
+      }
+
+  } catch (error) {
+      console.error('Error during visualization:', error);
+      if (error.message && error.message.includes('[500 Internal Server Error]')) {
+          return res.status(503).json({ error: 'The AI service is currently experiencing issues. Please try again in a moment.' });
+      }
+      res.status(500).json({ error: error.message || 'An unexpected error occurred on the server.' });
   }
 });
 
