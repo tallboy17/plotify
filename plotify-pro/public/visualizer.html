@@ -1088,7 +1088,7 @@
                             onYes: (actionToPerform) => {
                                 chatMessages.removeChild(chatMessages.lastChild); 
                                 if (actionToPerform && actionToPerform.finalPrompt) {
-                                   getVisualization(actionToPerform.finalPrompt, null);
+                                   getVisualization(actionToPerform.finalPrompt, null, currentAnalysisData);
                                 } else {
                                    addMessageToChat("I'm sorry, I couldn't create a clear action plan. Could you please rephrase your request?", 'ai');
                                 }
@@ -1112,7 +1112,7 @@
             }
 
 
-            async function getVisualization(prompt, shape) {
+            async function getVisualization(prompt, shape, analysisData) {
                 addMessageToChat("Okay, I'm creating your visualization now. This may take a moment...", 'ai');
                 loadingIndicator.style.display = 'block';
                 sendBtn.disabled = true;
@@ -1123,7 +1123,8 @@
                 const payload = {
                     backgroundImage: imageData,
                     shape: shape,
-                    prompt: prompt
+                    prompt: prompt,
+                    analysisData: analysisData
                 };
             
                 const controller = new AbortController();

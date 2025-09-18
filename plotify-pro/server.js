@@ -1202,7 +1202,7 @@ app.post('/api/visualizer/understand-intent', async (req, res) => {
 
       **Input:**
       1.  **User Command:** "${userCommand}"
-      2.  **Photo Analysis Data:** ${JSON.stringify(analysisData.detectedObjects)}
+      2.  **Photo Analysis Data:** ${JSON.stringify(analysisData)}
 
       **Your Task:**
       Analyze the user's command and the available objects to create a clear, actionable plan. Respond ONLY with a valid JSON object following this schema:
@@ -1244,20 +1244,20 @@ app.post('/api/visualizer/understand-intent', async (req, res) => {
 
 app.post('/api/visualizer/visualize', async (req, res) => {
   try {
-      
-      const { backgroundImage, prompt: userPrompt } = req.body;
-      
+      const { backgroundImage, prompt: userPrompt, analysisData } = req.body;
 
-      if (!backgroundImage || !userPrompt) {
-          return res.status(400).json({ error: 'Missing required fields: backgroundImage and prompt are required.' });
+      if (!backgroundImage || !userPrompt || !analysisData) {
+          return res.status(400).json({ error: 'Missing required fields: backgroundImage, prompt, and analysisData are required.' });
       }
 
       const fullPrompt = `TASK: Photorealistic Image Editing.
 
       USER REQUEST: "${userPrompt}"
+
+      CONTEXT: The user is looking at an image that has been analyzed with the following properties: ${JSON.stringify(analysisData)}
       
       INSTRUCTIONS:
-      1.  Modify the provided background image based on the USER REQUEST.
+      1.  Using the provided context, modify the background image based on the USER REQUEST.
       2.  Apply changes to the entire image as appropriate.
       3.  CRITICAL RULE: Changes must only affect plantable surfaces (soil, mulch, grass). Do NOT alter hardscape (concrete, pavement, stone, buildings). Hardscape must remain untouched.
       4.  The final image must be seamlessly blended, matching the original lighting, shadows, and perspective.
@@ -1269,8 +1269,7 @@ app.post('/api/visualizer/visualize', async (req, res) => {
           { inlineData: { mimeType: 'image/jpeg', data: backgroundImage } }
       ];
 
-      console.log("Received visualize request with body:", JSON.stringify(fullPrompt));
-
+      console.log("Content Parts:", fullPrompt);
       const result = await model.generateContent(contentParts);
 
       const response = await result.response;
