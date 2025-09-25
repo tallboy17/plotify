@@ -414,22 +414,7 @@
                                 // Handle Errors here.
                                 const errorMessage = error.message;
                                 console.error('Login failed:', errorMessage);
-                                console.error('Full error:', error);
-                                
-                                // Provide more specific error messages
-                                let userMessage = 'Login failed: ' + errorMessage;
-                                
-                                if (errorMessage.includes('auth/unauthorized-domain')) {
-                                    userMessage = 'Domain not authorized. Please contact support.';
-                                } else if (errorMessage.includes('auth/popup-closed-by-user')) {
-                                    userMessage = 'Login cancelled by user.';
-                                } else if (errorMessage.includes('auth/popup-blocked')) {
-                                    userMessage = 'Popup blocked by browser. Please allow popups and try again.';
-                                } else if (errorMessage.includes('Invalid or expired')) {
-                                    userMessage = 'Invalid or expired Google token. Please sign in again.';
-                                }
-                                
-                                alert(userMessage);
+                                alert('Login failed: ' + errorMessage);
                             });
                     });
                 }
