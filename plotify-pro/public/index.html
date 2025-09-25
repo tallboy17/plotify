@@ -342,15 +342,21 @@
             // 1. Your Firebase configuration object (paste yours here)
             // IMPORTANT: Replace the placeholder values below with your actual
             // Firebase project's configuration.
+            // Dynamic Firebase configuration based on domain
+            const currentDomain = window.location.hostname;
+            const isLocalhost = currentDomain === 'localhost' || currentDomain === '127.0.0.1';
+            
             const firebaseConfig = {
                 apiKey: "AIzaSyB9qd27E11AtNXddGGrIjw_SMpvMX9Rj9g",
-                authDomain: "plotifypro-195ee.firebaseapp.com",
+                authDomain: isLocalhost ? "plotifypro-195ee.firebaseapp.com" : "dev.plotify.pro",
                 projectId: "plotifypro-195ee",
                 storageBucket: "plotifypro-195ee.firebasestorage.app",
                 messagingSenderId: "754999219864",
                 appId: "1:754999219864:web:c87092b42344828bae22ed",
                 measurementId: "G-0KLXX8P9WW"
             };
+            
+            console.log('Firebase config for domain:', currentDomain, firebaseConfig);
 
             // 2. Initialize Firebase
             try {
@@ -408,7 +414,22 @@
                                 // Handle Errors here.
                                 const errorMessage = error.message;
                                 console.error('Login failed:', errorMessage);
-                                alert('Login failed: ' + errorMessage);
+                                console.error('Full error:', error);
+                                
+                                // Provide more specific error messages
+                                let userMessage = 'Login failed: ' + errorMessage;
+                                
+                                if (errorMessage.includes('auth/unauthorized-domain')) {
+                                    userMessage = 'Domain not authorized. Please contact support.';
+                                } else if (errorMessage.includes('auth/popup-closed-by-user')) {
+                                    userMessage = 'Login cancelled by user.';
+                                } else if (errorMessage.includes('auth/popup-blocked')) {
+                                    userMessage = 'Popup blocked by browser. Please allow popups and try again.';
+                                } else if (errorMessage.includes('Invalid or expired')) {
+                                    userMessage = 'Invalid or expired Google token. Please sign in again.';
+                                }
+                                
+                                alert(userMessage);
                             });
                     });
                 }
